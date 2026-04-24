@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.*
+.DS_Store
+*.gen.ts
+*.gen.tsx
+*.gen.d.ts
+.edgepod

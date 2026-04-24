@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "eqeqeq": "warn",
+    "import/order": "error"
+  },
+  "plugins": ["unicorn"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "scripts/**"],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/tests/**/*.ts"],
+      "rules": {
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "unicorn/no-useless-fallback-in-spread": "off",
+        "unicorn/no-null": "off"
+      },
+      "plugins": []
+    }
+  ]
+}

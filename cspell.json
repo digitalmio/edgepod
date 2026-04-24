@@ -1,0 +1,19 @@
+{
+  "version": "0.2",
+  "language": "en_gb",
+  "words": [
+    "Zed",
+    "shadcn",
+    "keymap",
+    "hyperdrive",
+    "drizzle",
+    "drizzle-kit",
+    "pg",
+    "postgres",
+    "oxlint",
+    "oxfmt",
+    "edgepod",
+    "betterauth"
+  ],
+  "ignorePaths": ["node_modules", "dist"]
+}
