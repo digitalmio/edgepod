@@ -10,6 +10,11 @@ import { findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 
 export const initCommand = async () => {
+  console.log("");
+  console.log(pc.bold("Edgepod — Init"));
+  console.log("Setting up your project...");
+  console.log("");
+
   const [rootPath, wranglerPath] = await Promise.all([findRootPath(), findWrangler()]);
 
   if (!rootPath) {
@@ -20,9 +25,6 @@ export const initCommand = async () => {
     );
     process.exit(1);
   }
-
-  console.log(`Project root: ${pc.cyan(rootPath)}`);
-  console.log("");
 
   try {
     await createEdgepodDirectories(rootPath);
