@@ -1,40 +1,47 @@
+import pc from "picocolors";
+import { showWranglerConfigMessage } from "../messagelogs/wrangler";
 import {
   createEdgepodDirectories,
   createLocalEdgepodSqlDbFile,
   createPublicFiles,
+  generateWranglerFromTemplate,
 } from "../utils/files";
-import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
+import { findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 
 export const initCommand = async () => {
-  const packageManager = await findPackageManager();
-  const rootPath = await findRootPath();
-  const wranglerPath = await findWrangler();
+  const [rootPath, wranglerPath] = await Promise.all([findRootPath(), findWrangler()]);
 
-  // if no rootPath - we need to ask user to init the project first
   if (!rootPath) {
     console.error(
-      "No package manager lock file found. Please run 'npm / yarn / pnpm / bun init' to initialize your project first."
+      pc.red(
+        "No package.json found. Please run your package manager's init command first (e.g. npm init)."
+      )
     );
-    return;
+    process.exit(1);
   }
 
-  console.log(`Detected package manager: ${packageManager}`);
-  console.log(`Project root path: ${rootPath}`);
+  console.log(`Project root: ${pc.cyan(rootPath)}`);
+  console.log("");
 
-  await createEdgepodDirectories(rootPath);
-  await createLocalEdgepodSqlDbFile(rootPath);
-  await createPublicFiles(rootPath);
+  try {
+    await createEdgepodDirectories(rootPath);
+    await createLocalEdgepodSqlDbFile(rootPath);
+    await createPublicFiles(rootPath);
+    await addScriptsToPackageJson(`${rootPath}/package.json`);
 
-  await addScriptsToPackageJson(`${rootPath}/package.json`);
+    if (wranglerPath) {
+      showWranglerConfigMessage(wranglerPath);
+    } else {
+      await generateWranglerFromTemplate(rootPath);
+    }
 
-  if (wranglerPath) {
-    console.warn(
-      `Wrangler configuration file found at ${wranglerPath}. Please make sure to configure it to work with Edgepod.`
+    console.log("");
+    console.log(pc.green("Edgepod initialized successfully."));
+  } catch (error) {
+    console.error(
+      pc.red(`Initialization failed: ${error instanceof Error ? error.message : error}`)
     );
-  } else {
-    console.warn(
-      "No Wrangler configuration file found. If you plan to deploy to Cloudflare Workers, please run 'wrangler init' to initialize your project with Wrangler."
-    );
+    process.exit(1);
   }
 };

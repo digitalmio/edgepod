@@ -1,52 +1,53 @@
 import fs from "node:fs/promises";
+import pc from "picocolors";
+import { functionsIndexTemplate } from "../templates/functions";
+import { prismaSchemaTemplate } from "../templates/prisma";
+import { wranglerJsonTemplate } from "../templates/wrangler";
 
 export const createEdgepodDirectories = async (projectRoot: string) => {
-  const edgepodRootDir = `${projectRoot}/.edgepod`;
-  const subdirectories = ["functions", "static", "db", "migrations"];
+  const edgepodRootDir = `${projectRoot}/edgepod`;
+  const subdirectories = ["functions", ".generated/migrations", ".internal/server"];
 
-  try {
-    for (const subdir of subdirectories) {
-      await fs.mkdir(`${edgepodRootDir}/${subdir}`, { recursive: true });
-      console.debug(`Created ${subdir} directory at ${edgepodRootDir}/${subdir}`);
-    }
-  } catch (error) {
-    console.error(`Failed to create .edgepod directory: ${error}`);
-    throw error;
+  for (const subdir of subdirectories) {
+    await fs.mkdir(`${edgepodRootDir}/${subdir}`, { recursive: true });
   }
+
+  console.log(pc.green("Created project directories."));
 };
 
 export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
-  const dbFilePath = `${projectRoot}/.edgepod/db/edgepod.db`;
+  const dbFilePath = `${projectRoot}/edgepod/.internal/local.db`;
 
-  try {
-    await fs.writeFile(dbFilePath, "");
-    console.log(`Created local Edgepod SQL database file at ${dbFilePath}`);
-  } catch (error) {
-    console.error(`Failed to create local Edgepod SQL database file: ${error}`);
-    throw error;
-  }
+  await fs.writeFile(dbFilePath, "", { flag: "wx" }).catch((e: NodeJS.ErrnoException) => {
+    if (e.code !== "EEXIST") throw e;
+  });
+
+  console.log(pc.green("Local database file ready."));
 };
 
 export const createPublicFiles = async (projectRoot: string) => {
-  const publicDir = `${projectRoot}/edgepod`;
-  const deepestDir = `${publicDir}/functions`;
   const files = [
-    ["schema.prisma", "// Add your database schema here"],
-    ["functions/index.ts", "// Add your functions code here"],
+    ["edgepod/schema.prisma", prismaSchemaTemplate()],
+    ["edgepod/functions/index.ts", functionsIndexTemplate()],
   ];
 
-  try {
-    await fs.mkdir(deepestDir, { recursive: true });
-    await Promise.all(
-      files.map((file) =>
-        fs.writeFile(`${publicDir}/${file[0]}`, file[1] ?? "", { flag: "wx" }).catch((e) => {
+  await Promise.all(
+    files.map((file) =>
+      fs
+        .writeFile(`${projectRoot}/${file[0]}`, file[1] ?? "", { flag: "wx" })
+        .catch((e: NodeJS.ErrnoException) => {
           if (e.code !== "EEXIST") throw e;
         })
-      )
-    );
-    console.debug(`Created public directory at ${publicDir}`);
-  } catch (error) {
-    console.error(`Failed to create public directory: ${error}`);
-    throw error;
-  }
+    )
+  );
+
+  console.log(pc.green("Created project files."));
+};
+
+export const generateWranglerFromTemplate = async (projectRoot: string) => {
+  const wranglerJsonPath = `${projectRoot}/wrangler.json`;
+
+  await fs.writeFile(wranglerJsonPath, wranglerJsonTemplate(), { flag: "wx" });
+
+  console.log(pc.green("Created wrangler.json."));
 };

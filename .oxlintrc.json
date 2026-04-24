@@ -3,8 +3,7 @@
   "rules": {
     "no-unused-vars": "warn",
     "no-console": "off",
-    "eqeqeq": "warn",
-    "import/order": "error"
+    "eqeqeq": "warn"
   },
   "plugins": ["unicorn"],
   "categories": {

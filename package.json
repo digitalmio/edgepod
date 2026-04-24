@@ -5,11 +5,11 @@
     "lint": "oxlint .",
     "format": "oxfmt . --write"
   },
-  "packageManager": "pnpm@10.33.2",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260423.1",
     "oxfmt": "^0.46.0",
     "oxlint": "^1.61.0",
     "typescript": "^6.0.3"
-  }
+  },
+  "packageManager": "pnpm@10.33.2"
 }
