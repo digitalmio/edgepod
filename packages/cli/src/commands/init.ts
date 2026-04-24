@@ -1,3 +1,4 @@
+import { confirm } from "@inquirer/prompts";
 import pc from "picocolors";
 import { showWranglerConfigMessage } from "../messagelogs/wrangler";
 import {
@@ -6,8 +7,9 @@ import {
   createPublicFiles,
   generateWranglerFromTemplate,
 } from "../utils/files";
-import { findRootPath, findWrangler } from "../utils/findFiles";
+import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
+import { execa } from "execa";
 
 export const initCommand = async () => {
   console.log("");
@@ -15,7 +17,11 @@ export const initCommand = async () => {
   console.log("Setting up your project...");
   console.log("");
 
-  const [rootPath, wranglerPath] = await Promise.all([findRootPath(), findWrangler()]);
+  const [rootPath, wranglerPath, packageManager] = await Promise.all([
+    findRootPath(),
+    findWrangler(),
+    findPackageManager(),
+  ]);
 
   if (!rootPath) {
     console.error(
@@ -40,6 +46,19 @@ export const initCommand = async () => {
 
     console.log("");
     console.log(pc.green("Edgepod initialized successfully."));
+
+    const runInstall = await confirm({
+      message: `Run ${packageManager} install now?`,
+      default: true,
+    });
+
+    if (runInstall) {
+      console.log(`Running ${pc.cyan(`${packageManager} install`)}...`);
+      await execa(packageManager, ["install"], { cwd: rootPath, stdio: "ignore" });
+      console.log(pc.green("Dependencies installed."));
+    } else {
+      console.log(`Remember to run ${pc.cyan(`${packageManager} install`)} before starting.`);
+    }
   } catch (error) {
     console.error(
       pc.red(`Initialization failed: ${error instanceof Error ? error.message : error}`)
