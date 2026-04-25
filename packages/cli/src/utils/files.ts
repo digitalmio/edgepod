@@ -4,6 +4,7 @@ import { functionsIndexTemplate } from "../templates/functions";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
 import { genTypesTemplate } from "../templates/types";
+import { serverTemplate } from "../templates/server";
 
 export const createEdgepodDirectories = async (projectRoot: string) => {
   const edgepodRootDir = `${projectRoot}/edgepod`;
@@ -37,6 +38,7 @@ export const createFiles = async (projectRoot: string) => {
     ["edgepod/types.ts", genTypesTemplate()],
     ["edgepod/schema.ts", schemaTemplate()],
     ["edgepod/functions/index.ts", functionsIndexTemplate()],
+    ["edgepod/.generated/server.ts", serverTemplate()],
   ];
 
   const results = await Promise.all(

@@ -3,7 +3,7 @@ export const wranglerJsonTemplate = () => {
 
   return `{
   "name": "edgepod-server",
-  "main": "./edgepod/.internal/server.ts",
+  "main": "./edgepod/.generated/server.ts",
   "compatibility_date": "${date}",
   "compatibility_flags": [
     "nodejs_compat"
