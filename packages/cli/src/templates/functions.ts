@@ -1,5 +1,6 @@
 export const functionsIndexTemplate = () => `import { Ctx } from '../.generated/types';
 import { eq } from '@edgepod/server';
+import * as schema from '../schema';
 
 // 1. Standard Query
 export const getUsers = async (ctx: Ctx) => {
