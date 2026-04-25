@@ -1,5 +1,14 @@
-export const genTypesTemplate = () => `import * as schema from "../schema";
+export const genTypesTemplate = () => `import * as schema from "./schema";
 import type { EdgePodContext } from "@edgepod/server";
 
-export type Ctx = EdgePodContext<typeof schema>;
+type Env = {
+  SECRET_KEY: string;
+}
+
+type Variables = {
+  user: { id: number; name: string } | null;
+  traceId: string;
+}
+
+export type Ctx = EdgePodContext<typeof schema, Env, Variables>;
 `;

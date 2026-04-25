@@ -34,7 +34,7 @@ export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
 
 export const createFiles = async (projectRoot: string) => {
   const files = [
-    ["edgepod/.generated/types.ts", genTypesTemplate()],
+    ["edgepod/types.ts", genTypesTemplate()],
     ["edgepod/schema.ts", schemaTemplate()],
     ["edgepod/functions/index.ts", functionsIndexTemplate()],
   ];

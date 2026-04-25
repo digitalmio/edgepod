@@ -1,0 +1,17 @@
+{
+  "name": "@edgepod/server",
+  "version": "0.0.1",
+  "description": "Server component of Edgepod - Handles API requests, database interactions, and server-side logic",
+  "keywords": [],
+  "license": "ISC",
+  "author": "Maciej Ziehlke <mac@dmio.co>",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

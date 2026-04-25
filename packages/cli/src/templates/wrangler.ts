@@ -24,11 +24,13 @@ export const wranglerJsonTemplate = () => {
       ]
     }
   ],
-  "rules": {
-    "type": "Text",
-    "globs": ["**/*.sql"],
-    "fallthrough": true
-  }
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["edgepod/.generated/migrations/**/*.sql"],
+      "fallthrough": true
+    }
+  ]
 }
 `;
 };

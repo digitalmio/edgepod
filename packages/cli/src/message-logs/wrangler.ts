@@ -14,7 +14,12 @@ class_name = "EdgePodEngine"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["EdgePodEngine"]`)}
+new_classes = ["EdgePodEngine"]
+
+[[rules]]
+type = "Text"
+globs = ["edgepod/.generated/migrations/**/*.sql"]
+fallthrough = true`)}
   `);
   } else {
     console.log(`
@@ -33,6 +38,13 @@ ${pc.cyan(`"durable_objects": {
   {
     "tag": "v1",
     "new_classes": ["EdgePodEngine"]
+  }
+],
+"rules": [
+  {
+    "type": "Text",
+    "globs": ["edgepod/.generated/migrations/**/*.sql"],
+    "fallthrough": true
   }
 ]`)}
   `);

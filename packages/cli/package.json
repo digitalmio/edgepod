@@ -1,7 +1,7 @@
 {
-  "name": "@egdepod/cli",
+  "name": "@edgepod/cli",
   "version": "0.0.1",
-  "description": "",
+  "description": "Edgepod CLI - A tool to initialize and manage Edgepod projects",
   "keywords": [],
   "license": "ISC",
   "author": "Maciej Ziehlke <mac@dmio.co>",
@@ -30,5 +30,5 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "packageManager": "pnpm@10.20.0"
+  "packageManager": "pnpm@10.33.2"
 }
