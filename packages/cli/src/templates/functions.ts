@@ -1,4 +1,10 @@
-export const functionsIndexTemplate = () => `import { Ctx } from '../.generated/types';
+export const functionsIndexTemplate = () => `// This is where you define your Edgepod functions!
+// These are the functions that will be executed on the Edgepod server and can be called from your frontend or other clients.
+// 
+// Feel free to modify the function signatures and add as many functions as you need.
+// Just make sure to export them so they can be used by the Edgepod runtime.
+
+import { Ctx } from '../.generated/types';
 import { eq } from '@edgepod/server';
 import * as schema from '../schema';
 

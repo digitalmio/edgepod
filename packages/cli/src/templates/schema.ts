@@ -1,4 +1,8 @@
-export const schemaTemplate = () => `import { table, text, integer } from '@edgepod/server';
+export const schemaTemplate = () => `// This is your Edgepod schema file.
+// Define your database tables and their relationships here using the Edgepod schema builder (based on Drizzle ORM).
+// This file is used to generate the types for your database and to create the actual database structure on the Edgepod server.
+
+import { table, text, integer } from '@edgepod/server';
 
 export const users = table('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
