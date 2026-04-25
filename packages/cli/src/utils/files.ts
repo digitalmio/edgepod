@@ -3,6 +3,7 @@ import pc from "picocolors";
 import { functionsIndexTemplate } from "../templates/functions";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
+import { genTypesTemplate } from "../templates/types";
 
 export const createEdgepodDirectories = async (projectRoot: string) => {
   const edgepodRootDir = `${projectRoot}/edgepod`;
@@ -33,7 +34,7 @@ export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
 
 export const createFiles = async (projectRoot: string) => {
   const files = [
-    ["edgepod/.generated/types.ts", ""],
+    ["edgepod/.generated/types.ts", genTypesTemplate()],
     ["edgepod/schema.ts", schemaTemplate()],
     ["edgepod/functions/index.ts", functionsIndexTemplate()],
   ];

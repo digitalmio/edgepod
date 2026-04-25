@@ -36,5 +36,4 @@ export const createUser = async (ctx: Ctx, args: { email: string; name: string }
 
   return newUser[0];
 };
-
 `;

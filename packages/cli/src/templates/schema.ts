@@ -19,5 +19,4 @@ export const posts = table('posts', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 });
-
 `;
