@@ -4,7 +4,7 @@ import { showWranglerConfigMessage } from "../messagelogs/wrangler";
 import {
   createEdgepodDirectories,
   createLocalEdgepodSqlDbFile,
-  createPublicFiles,
+  createFiles,
   generateWranglerFromTemplate,
 } from "../utils/files";
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
@@ -35,8 +35,8 @@ export const initCommand = async () => {
   try {
     await createEdgepodDirectories(rootPath);
     await createLocalEdgepodSqlDbFile(rootPath);
-    await createPublicFiles(rootPath);
-    await addScriptsToPackageJson(`${rootPath}/package.json`);
+    await createFiles(rootPath);
+    await addScriptsToPackageJson(rootPath);
 
     if (wranglerPath) {
       showWranglerConfigMessage(wranglerPath);
@@ -45,7 +45,8 @@ export const initCommand = async () => {
     }
 
     console.log("");
-    console.log(pc.green("Edgepod initialized successfully."));
+    console.log(pc.green("🚀 Edgepod initialized successfully."));
+    console.log("");
 
     const runInstall = await confirm({
       message: `Run ${packageManager} install now?`,
@@ -54,8 +55,17 @@ export const initCommand = async () => {
 
     if (runInstall) {
       console.log(`Running ${pc.cyan(`${packageManager} install`)}...`);
-      await execa(packageManager, ["install"], { cwd: rootPath, stdio: "ignore" });
-      console.log(pc.green("Dependencies installed."));
+
+      try {
+        await execa(packageManager, ["install"], {
+          stdio: "inherit",
+          shell: true,
+        });
+        console.log("\nInstall complete.");
+      } catch {
+        console.error(`\n❌ Install failed. Please run '${packageManager} install' manually.`);
+        process.exit(1);
+      }
     } else {
       console.log(`Remember to run ${pc.cyan(`${packageManager} install`)} before starting.`);
     }

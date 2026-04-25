@@ -19,8 +19,6 @@
     "execa": "^9.6.1",
     "find-up": "^8.0.0",
     "picocolors": "^1.1.1",
-    "prisma": "^7.8.0",
-    "prisma-kysely": "^3.1.0",
     "wrangler": "^4.84.1",
     "write-package": "^7.2.0"
   },
@@ -28,6 +26,9 @@
     "@types/node": "^25.6.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.5.0"
   },
   "packageManager": "pnpm@10.20.0"
 }

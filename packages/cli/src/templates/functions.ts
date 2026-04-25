@@ -1,36 +1,33 @@
-export const functionsIndexTemplate = () => `import { EdgePodContext } from '@edgepod/server';
-import { DB } from '../.generated'; // This is Auto-generated for you from schema.prisma
+export const functionsIndexTemplate = () => `import { Ctx } from '../.generated/types';
+import { eq } from '@edgepod/server';
 
-// 1. Setup the typed context
-type Ctx = EdgePodContext<DB>;
-
-// 2. Export standard queries
+// 1. Standard Query
 export const getUsers = async (ctx: Ctx) => {
-  // Autocomplete will perfectly suggest 'User' and 'Post' here!
-  return await ctx.db.selectFrom('User').selectAll().execute();
+  return await ctx.db.select().from(schema.users);
 };
 
-// 3. Export queries with arguments
+// 2. Query with arguments
 export const getUserById = async (ctx: Ctx, args: { id: number }) => {
-  return await ctx.db
-    .selectFrom('User')
-    .selectAll()
-    .where('id', '=', args.id)
-    .executeTakeFirst();
+  const result = await ctx.db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, args.id))
+    .limit(1);
+    
+  return result[0] || null;
 };
 
-// 4. Export mutations (This automatically triggers the WebSocket invalidation!)
-export const insertUser = async (ctx: Ctx, args: { email: string; name: string }) => {
+// 3. Mutation (This triggers the EdgePod WebSockets!)
+export const createUser = async (ctx: Ctx, args: { email: string; name: string }) => {
   const newUser = await ctx.db
-    .insertInto('User')
+    .insert(schema.users)
     .values({
       email: args.email,
       name: args.name,
-      createdAt: new Date().toISOString()
     })
-    .returningAll()
-    .executeTakeFirst();
+    .returning();
 
-  return newUser;
+  return newUser[0];
 };
+
 `;

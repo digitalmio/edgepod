@@ -23,7 +23,12 @@ export const wranglerJsonTemplate = () => {
         "EdgePodEngine"
       ]
     }
-  ]
+  ],
+  "rules": {
+    "type": "Text",
+    "globs": ["**/*.sql"],
+    "fallthrough": true
+  }
 }
 `;
 };
