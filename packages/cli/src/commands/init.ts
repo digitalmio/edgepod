@@ -1,6 +1,6 @@
 import { confirm } from "@inquirer/prompts";
 import pc from "picocolors";
-import { showWranglerConfigMessage } from "../messagelogs/wrangler";
+import { showWranglerConfigMessage } from "../message-logs/wrangler";
 import {
   createEdgepodDirectories,
   createLocalEdgepodSqlDbFile,
@@ -9,7 +9,7 @@ import {
 } from "../utils/files";
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
-import { execa } from "execa";
+import { runNpmInstall } from "../execa/npmInstall";
 
 export const initCommand = async () => {
   console.log("");
@@ -54,18 +54,7 @@ export const initCommand = async () => {
     });
 
     if (runInstall) {
-      console.log(`Running ${pc.cyan(`${packageManager} install`)}...`);
-
-      try {
-        await execa(packageManager, ["install"], {
-          stdio: "inherit",
-          shell: true,
-        });
-        console.log("\nInstall complete.");
-      } catch {
-        console.error(`\n❌ Install failed. Please run '${packageManager} install' manually.`);
-        process.exit(1);
-      }
+      await runNpmInstall(packageManager, rootPath);
     } else {
       console.log(`Remember to run ${pc.cyan(`${packageManager} install`)} before starting.`);
     }
