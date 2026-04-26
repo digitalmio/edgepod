@@ -1,3 +1,7 @@
+import pkg from "../../package.json" with { type: "json" };
+
+const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
+
 export const edgePodFetch = async (request: Request, env: any) => {
   const url = new URL(request.url);
   const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
@@ -18,28 +22,31 @@ export const edgePodFetch = async (request: Request, env: any) => {
           args = JSON.parse(decodeURIComponent(queryArgs));
         }
       } else {
-        return new Response("Method Not Allowed", { status: 405 });
+        return new Response("Method Not Allowed", { status: 405, headers: serverHeader });
       }
 
       const headers = Object.fromEntries(request.headers.entries());
       const data = await stub.executeRpc(functionName, args, headers);
 
-      return Response.json({ data });
+      return Response.json({ data }, { headers: serverHeader });
     } catch (error) {
-      return Response.json({ error: (error as Error).message }, { status: 500 });
+      return Response.json(
+        { error: (error as Error).message },
+        { status: 500, headers: serverHeader }
+      );
     }
   }
 
   // WebSocket Upgrades and handler
   if (url.pathname === "/ws") {
     if (request.headers.get("Upgrade") !== "websocket") {
-      return new Response("Expected WebSocket upgrade", { status: 426 });
+      return new Response("Expected WebSocket upgrade", { status: 426, headers: serverHeader });
     }
     // WebSockets STILL require the HTTP fetch() path to handle the Upgrade header
     return await stub.fetch(request);
   }
 
-  return new Response("Not Found", { status: 404 });
+  return new Response("Not Found", { status: 404, headers: serverHeader });
 };
 
 // barrel export for the DO class, so Wrangler can push the code
