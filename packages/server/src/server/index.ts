@@ -42,7 +42,7 @@ export const edgePodFetch = async (request: Request, env: any) => {
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426, headers: serverHeader });
     }
-    // WebSockets STILL require the HTTP fetch() path to handle the Upgrade header
+    // WebSockets require the HTTP fetch() path to handle the Upgrade header
     return await stub.fetch(request);
   }
 
