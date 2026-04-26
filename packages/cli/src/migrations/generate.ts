@@ -2,7 +2,20 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import type { DrizzleSQLiteSnapshotJSON } from "drizzle-kit/api";
+import { generateReactivityTriggersSql } from "./reactivityTriggers";
 import { consola } from "consola";
+
+interface SnapshotColumn {
+  type: string;
+}
+
+interface SnapshotTable {
+  columns: Record<string, SnapshotColumn>;
+}
+
+interface SnapshotTables {
+  tables: Record<string, SnapshotTable>;
+}
 
 const SNAPSHOT_FILE = "snapshot.json";
 const JOURNAL_FILE = "meta/_journal.json";
@@ -60,6 +73,45 @@ ${migrationsObj}
   await fs.writeFile(path.join(outputDir, "index.ts"), content, "utf-8");
 }
 
+async function warnColumnTypeChanges(
+  prev: DrizzleSQLiteSnapshotJSON,
+  cur: DrizzleSQLiteSnapshotJSON
+): Promise<void> {
+  const changes: { table: string; column: string; from: string; to: string }[] = [];
+  const prevTables = (prev as unknown as SnapshotTables).tables;
+  const curTables = (cur as unknown as SnapshotTables).tables;
+
+  for (const [tableName, curTable] of Object.entries(curTables)) {
+    const prevTable = prevTables[tableName];
+    if (!prevTable) continue;
+
+    for (const [colName, curCol] of Object.entries(curTable.columns)) {
+      const prevCol = prevTable.columns[colName];
+      if (prevCol && prevCol.type !== curCol.type) {
+        changes.push({ table: tableName, column: colName, from: prevCol.type, to: curCol.type });
+      }
+    }
+  }
+
+  if (changes.length === 0) return;
+
+  consola.warn("SQLite does not support changing column types directly.");
+  consola.warn("The following columns will be dropped and recreated — existing data will be lost:");
+  for (const c of changes) {
+    consola.log(`  ${c.table}.${c.column}: ${c.from} → ${c.to}`);
+  }
+
+  const confirmed = await consola.prompt("Proceed and generate the migration anyway?", {
+    type: "confirm",
+    initial: false,
+  });
+
+  if (!confirmed) {
+    consola.info("Migration aborted.");
+    process.exit(0);
+  }
+}
+
 export async function generateMigrationFiles(
   rootPath: string,
   schemaRelPath: string = "edgepod/schema.ts",
@@ -75,6 +127,9 @@ export async function generateMigrationFiles(
 
   const userSchema = await import(absSchemaPath);
   const curSnapshot = await generateSQLiteDrizzleJson(userSchema, prevSnapshot.id);
+
+  await warnColumnTypeChanges(prevSnapshot, curSnapshot);
+
   const statements = await generateSQLiteMigration(prevSnapshot, curSnapshot);
 
   if (statements.length === 0) {
@@ -86,7 +141,9 @@ export async function generateMigrationFiles(
 
   const idx = journal.entries.length;
   const tag = `${String(idx).padStart(4, "0")}_migration`;
-  const sqlContent = statements.join("\n--> statement-breakpoint\n");
+  const tableNames = Object.keys(curSnapshot.tables);
+  const triggerStatements = generateReactivityTriggersSql(tableNames);
+  const sqlContent = [...statements, ...triggerStatements].join("\n--> statement-breakpoint\n");
 
   await fs.writeFile(path.join(absOutputDir, `${tag}.sql`), sqlContent, "utf-8");
 
