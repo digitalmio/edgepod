@@ -1,9 +1,9 @@
-# Bindhook — Agent Rules
+# EdgePod — Agent Rules
 
 ## General Behaviour
 
 - **Ask questions if unsure, do not assume anything.** When requirements are ambiguous, ask for clarification before writing code.
-- **Keep files under 150 lines** (soft limit). Files above 200 lines must be refactored into smaller modules (hard limit). **Exception:** `packages/db/seeds/**` files are exempt from LOC limits — seed data is allowed to be as long as needed.
+- **Keep files under 150 lines** (soft limit). Files above 200 lines must be refactored into smaller modules (hard limit).
 - **No Python.** For helper scripts, use Node.js (plain `.mjs` files). Never reach for Python, shell scripts beyond simple one-liners, or other runtimes.
 - **Do not edit auto-generated files.** Files like `routeTree.gen.ts` (TanStack Router), `worker-configuration.d.ts`, or any file with a `// This file is auto-generated` header must never be manually edited — they are overwritten by tooling.
 - **Do not edit shadcn/ui files.** Files under `src/components/ui/` are installed and managed by the shadcn CLI. Never modify them — override styles at the call site instead.
@@ -77,31 +77,8 @@ Ignored paths: `**/dist/**`, `**/node_modules/**`, `scripts/**`
 - All packages use `tsc --noEmit` for type-checking — **no emit, no dist**
 - Apps (Cloudflare Worker, Next.js) are the only things that bundle/compile
 - Packages point their `main`/`exports` directly at `./src/*.ts`
-- `@cloudflare/workers-types` is declared in the **root** `tsconfig.json` and installed at the root — do NOT add triple-slash `/// <reference types="@cloudflare/workers-types" />` directives to source files
+- `@cloudflare/workers-types` is declared and installed in the `tsconfig.json` of the packages that do require it — do NOT add triple-slash `/// <reference types="@cloudflare/workers-types" />` directives to source files
 - For Node globals (e.g. `process`) in config files like `drizzle.config.ts`, use `/// <reference types="node" />` at the top of that specific file only
-
-After any TypeScript change, run:
-
-```sh
-pnpm --filter @envbase/db build
-pnpm --filter @envbase/betterauth build
-```
-
----
-
-## Monorepo Structure
-
-```
-envbase/
-├── packages/
-│   ├── db/           (@bh/db)         — Drizzle ORM + schema
-│   └── betterauth/   (@bh/betterauth) — Better Auth server + client
-└── apps/             (built by their own bundler, not tsc)
-```
-
-- Package manager: **pnpm** with workspaces
-- Add workspace deps with: `pnpm add @envbase/db@workspace:*`
-- Add root devDeps with: `pnpm add -Dw <package>`
 
 ---
 
