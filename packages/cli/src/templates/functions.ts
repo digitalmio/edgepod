@@ -5,7 +5,7 @@ export const functionsIndexTemplate = () => `// This is where you define your Ed
 // Just make sure to export them so they can be used by the Edgepod runtime.
 
 import { Ctx } from '../types';
-import { eq } from '@edgepod/server';
+import { eq } from '@edgepod/server/schema';
 import * as schema from '../schema';
 
 // 1. Standard Query
