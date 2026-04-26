@@ -1,3 +1,4 @@
+#!/usr/bin/env tsx
 import cac from "cac";
 import { initCommand } from "./commands/init";
 

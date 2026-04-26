@@ -1,4 +1,4 @@
-import pc from "picocolors";
+import { consola } from "consola";
 import { updatePackage } from "write-package";
 
 export const addScriptsToPackageJson = async (rootPath: string) => {
@@ -8,14 +8,7 @@ export const addScriptsToPackageJson = async (rootPath: string) => {
       "edgepod:dev": "edgepod run --port 7700",
       "edgepod:deploy": "edgepod run --deploy",
     },
-    dependencies: {
-      "@edgepod/client": "latest",
-      "@edgepod/server": "latest",
-    },
-    devDependencies: {
-      "@edgepod/cli": "latest",
-    },
   });
 
-  console.log(pc.green("Updated package.json with Edgepod scripts and dependencies."));
+  consola.success("Updated package.json with Edgepod scripts.");
 };

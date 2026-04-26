@@ -1,3 +1,4 @@
+import { consola } from "consola";
 import { execa } from "execa";
 
 export async function runNpmInstall(
@@ -17,7 +18,7 @@ export async function runNpmInstall(
       stdio: "inherit",
     });
   } catch {
-    console.error(`❌ Install failed. Please run '${packageManager} install' manually.`);
+    consola.error(`Install failed. Please run '${packageManager} install' manually.`);
     process.exit(1);
   }
 }

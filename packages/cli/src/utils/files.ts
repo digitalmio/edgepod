@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import pc from "picocolors";
+import { consola } from "consola";
 import { functionsIndexTemplate } from "../templates/functions";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
@@ -14,7 +14,7 @@ export const createEdgepodDirectories = async (projectRoot: string) => {
     await fs.mkdir(`${edgepodRootDir}/${subdir}`, { recursive: true });
   }
 
-  console.log(pc.green("Created project directories."));
+  consola.success("Created project directories.");
 };
 
 export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
@@ -29,7 +29,7 @@ export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
     });
 
   if (created) {
-    console.log(pc.green("Local database file ready."));
+    consola.success("Local database file ready.");
   }
 };
 
@@ -56,14 +56,12 @@ export const createFiles = async (projectRoot: string) => {
   const created = results.filter(Boolean).length;
 
   if (created === files.length) {
-    console.log(pc.green("Created project files."));
+    consola.success("Created project files.");
   } else if (created === 0) {
-    console.log(pc.yellow("Project files already exist, skipping."));
+    consola.warn("Project files already exist, skipping.");
   } else {
-    console.log(
-      pc.green(`Created ${created} project file(s).`) +
-        pc.yellow(` ${files.length - created} already existed, skipped.`)
-    );
+    consola.success(`Created ${created} project file(s).`);
+    consola.warn(`${files.length - created} file(s) already existed, skipped.`);
   }
 };
 
@@ -72,5 +70,5 @@ export const generateWranglerFromTemplate = async (projectRoot: string) => {
 
   await fs.writeFile(wranglerJsonPath, wranglerJsonTemplate(), { flag: "wx" });
 
-  console.log(pc.green("Created wrangler.json."));
+  consola.success("Created wrangler.json.");
 };

@@ -14,11 +14,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.4.2",
     "cac": "^7.0.0",
+    "consola": "^3.4.2",
+    "drizzle-kit": "^0.31.10",
     "execa": "^9.6.1",
     "find-up": "^8.0.0",
-    "picocolors": "^1.1.1",
     "wrangler": "^4.84.1",
     "write-package": "^7.2.0"
   },

@@ -1,5 +1,4 @@
-import { confirm } from "@inquirer/prompts";
-import pc from "picocolors";
+import { consola } from "consola";
 import { showWranglerConfigMessage } from "../message-logs/wrangler";
 import {
   createEdgepodDirectories,
@@ -10,11 +9,11 @@ import {
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
+import { generateMigrationFiles } from "../migrations/generate";
 
 export const initCommand = async () => {
   console.log("");
-  console.log(pc.bold("Edgepod — Init"));
-  console.log("Setting up your project...");
+  consola.start("Setting up your project...");
   console.log("");
 
   const [rootPath, wranglerPath, packageManager] = await Promise.all([
@@ -24,10 +23,8 @@ export const initCommand = async () => {
   ]);
 
   if (!rootPath) {
-    console.error(
-      pc.red(
-        "No package.json found. Please run your package manager's init command first (e.g. npm init)."
-      )
+    consola.error(
+      "No package.json found. Please run your package manager's init command first (e.g. npm init)."
     );
     process.exit(1);
   }
@@ -45,23 +42,23 @@ export const initCommand = async () => {
     }
 
     console.log("");
-    console.log(pc.green("🚀 Edgepod initialized successfully."));
+    consola.success("🚀 Edgepod initialized successfully.");
     console.log("");
 
-    const runInstall = await confirm({
-      message: `Run ${packageManager} install now?`,
-      default: true,
+    await generateMigrationFiles(rootPath);
+
+    const runInstall = await consola.prompt(`Run ${packageManager} install now?`, {
+      type: "confirm",
+      initial: true,
     });
 
     if (runInstall) {
       await runNpmInstall(packageManager, rootPath);
     } else {
-      console.log(`Remember to run ${pc.cyan(`${packageManager} install`)} before starting.`);
+      consola.info(`Remember to run \`${packageManager} install\` before starting.`);
     }
   } catch (error) {
-    console.error(
-      pc.red(`Initialization failed: ${error instanceof Error ? error.message : error}`)
-    );
+    consola.error(`Initialization failed: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
 };
