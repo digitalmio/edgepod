@@ -6,5 +6,5 @@ export default {
   },
 };
 
-// barrel export for the DO class, so Wrangler can push the code
+// barrel export for the DO class, to allow Wrangler to push the code
 export { BaseEdgePodEngine } from "@edgepod/server";`;
