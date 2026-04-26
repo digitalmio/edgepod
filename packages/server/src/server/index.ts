@@ -7,7 +7,7 @@ export const edgePodFetch = async (request: Request, env: any) => {
   const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
   const stub = env.EDGEPOD_DO.get(doId);
 
-  // Native Durable Object RPC call
+  // Durable Object RPC call
   if (url.pathname.startsWith("/rpc/")) {
     // Remove first 5 characters (/rpc/) to extract function name, e.g. /rpc/myFunction -> myFunction
     const functionName = url.pathname.slice(5);
