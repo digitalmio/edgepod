@@ -9,7 +9,6 @@ import {
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
-import { generateMigrationFiles } from "../migrations/generate";
 
 export const initCommand = async () => {
   console.log("");
@@ -44,8 +43,6 @@ export const initCommand = async () => {
     console.log("");
     consola.success("🚀 Edgepod initialized successfully.");
     console.log("");
-
-    await generateMigrationFiles(rootPath);
 
     const runInstall = await consola.prompt(`Run ${packageManager} install now?`, {
       type: "confirm",

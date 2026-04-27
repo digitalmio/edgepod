@@ -1,8 +1,13 @@
 import pkg from "../../package.json" with { type: "json" };
+import type { BaseEdgePodEngine } from "./do";
 
 const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
-export const edgePodFetch = async (request: Request, env: any) => {
+type EdgePodEnv = {
+  EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
+};
+
+export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
   const url = new URL(request.url);
   const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
   const stub = env.EDGEPOD_DO.get(doId);
@@ -24,16 +29,22 @@ export const edgePodFetch = async (request: Request, env: any) => {
       } else {
         return new Response("Method Not Allowed", { status: 405, headers: serverHeader });
       }
+    } catch {
+      return Response.json(
+        { success: false, error: "Invalid request body." },
+        { status: 400, headers: serverHeader }
+      );
+    }
 
+    try {
       const headers = Object.fromEntries(request.headers.entries());
       const data = await stub.executeRpc(functionName, args, headers);
 
-      return Response.json({ data }, { headers: serverHeader });
+      return Response.json({ success: true, data }, { headers: serverHeader });
     } catch (error) {
-      return Response.json(
-        { error: (error as Error).message },
-        { status: 500, headers: serverHeader }
-      );
+      const message = (error as Error).message;
+      const status = message.startsWith("NOT_FOUND:") ? 404 : 500;
+      return Response.json({ success: false, error: message }, { status, headers: serverHeader });
     }
   }
 

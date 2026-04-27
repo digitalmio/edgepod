@@ -1,10 +1,18 @@
-export const serverTemplate = () => `import { edgePodFetch } from "@edgepod/server";
+export const serverTemplate =
+  () => `import { edgePodFetch, BaseEdgePodEngine } from "@edgepod/server";
+import * as schema from "../schema";
+import * as functions from "../functions/index";
+import migrations from "./migrations/index";
+
+export class EdgePodEngine extends BaseEdgePodEngine {
+  protected override schema = schema;
+  protected override userFunctions = functions;
+  protected override migrations = migrations;
+}
 
 export default {
   async fetch(request: Request, env: any) {
     return edgePodFetch(request, env);
   },
 };
-
-// barrel export for the DO class, to allow Wrangler to push the code
-export { BaseEdgePodEngine } from "@edgepod/server";`;
+`;
