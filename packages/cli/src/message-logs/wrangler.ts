@@ -8,7 +8,7 @@ const snippet = (text: string) => {
   return `\x1b[3;36m${indented}\x1b[0m`;
 };
 
-export const showWranglerConfigMessage = (wranglerPath: string) => {
+export const showWranglerConfigMessage = (wranglerPath: string, token: string) => {
   const type = wranglerPath.endsWith("wrangler.toml") ? "toml" : "json";
 
   if (type === "toml") {
@@ -16,6 +16,9 @@ export const showWranglerConfigMessage = (wranglerPath: string) => {
     consola.info("Please add the following EdgePod bindings to your wrangler.toml:");
     console.log(
       snippet(`
+[vars]
+EDGEPOD_PUBLIC_TOKEN = "${token}"
+
 [[durable_objects.bindings]]
 name = "EDGEPOD_DO"
 class_name = "EdgePodEngine"
@@ -34,6 +37,9 @@ fallthrough = true`)
     consola.info("Please merge the following EdgePod bindings into your wrangler.json:");
     console.log(
       snippet(`
+"vars": {
+  "EDGEPOD_PUBLIC_TOKEN": "${token}"
+},
 "durable_objects": {
   "bindings": [
     {
@@ -57,4 +63,7 @@ fallthrough = true`)
 ]`)
     );
   }
+  consola.info(
+    "For production, replace the vars entry with a Wrangler secret — run: ep deploy (it handles this automatically)."
+  );
 };

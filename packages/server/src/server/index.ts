@@ -5,10 +5,20 @@ const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
 type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
+  EDGEPOD_PUBLIC_TOKEN: string;
 };
 
 export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
   const url = new URL(request.url);
+
+  // Token auth — WebSocket upgrades can't send custom headers, so also accept ?token= query param
+  const token =
+    request.headers.get("Authorization")?.replace("Bearer ", "") ?? url.searchParams.get("token");
+
+  if (!token || token !== env.EDGEPOD_PUBLIC_TOKEN) {
+    return new Response("Unauthorized", { status: 401, headers: serverHeader });
+  }
+
   const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
   const stub = env.EDGEPOD_DO.get(doId);
 

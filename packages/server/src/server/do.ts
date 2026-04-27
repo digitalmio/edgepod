@@ -9,7 +9,10 @@ export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
-  protected userFunctions: Record<string, (...args: any[]) => any> = {};
+  protected userFunctions: Record<
+    string,
+    (...args: any[]) => Record<string, unknown> | number | string | boolean | Array<unknown>
+  > = {};
   protected schema: Record<string, unknown> = {};
   protected migrations: { journal: unknown; migrations: Record<string, string> } | null = null;
 

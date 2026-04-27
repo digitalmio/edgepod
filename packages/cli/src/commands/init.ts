@@ -28,6 +28,8 @@ export const initCommand = async () => {
     process.exit(1);
   }
 
+  const token = `ep_pk_${crypto.randomUUID()}`;
+
   try {
     await createEdgepodDirectories(rootPath);
     await createLocalEdgepodSqlDbFile(rootPath);
@@ -35,9 +37,9 @@ export const initCommand = async () => {
     await addScriptsToPackageJson(rootPath);
 
     if (wranglerPath) {
-      showWranglerConfigMessage(wranglerPath);
+      showWranglerConfigMessage(wranglerPath, token);
     } else {
-      await generateWranglerFromTemplate(rootPath);
+      await generateWranglerFromTemplate(rootPath, token);
     }
 
     console.log("");
