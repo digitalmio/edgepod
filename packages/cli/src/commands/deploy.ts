@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import { consola } from "consola";
 import { execa } from "execa";
+import { generateMigrationFiles } from "../migrations/generate";
 import { findRootPath, findWrangler } from "../utils/findFiles";
 
 const readApiKeyFromWrangler = async (wranglerPath: string): Promise<string | null> => {
@@ -19,6 +20,12 @@ const readApiKeyFromWrangler = async (wranglerPath: string): Promise<string | nu
   }
 };
 
+const generateMigrations = async (rootPath: string) => {
+  consola.start("Generating migrations...");
+  await generateMigrationFiles(rootPath);
+  consola.success("Migrations ready.");
+};
+
 export const deployCommand = async () => {
   const [rootPath, wranglerPath] = await Promise.all([findRootPath(), findWrangler()]);
 
@@ -29,6 +36,13 @@ export const deployCommand = async () => {
 
   if (!wranglerPath) {
     consola.error("No wrangler config found. Run edgepod init first.");
+    process.exit(1);
+  }
+
+  try {
+    await generateMigrations(rootPath);
+  } catch {
+    consola.error("Migration generation failed. Make sure edgepod/schema.ts exists.");
     process.exit(1);
   }
 
