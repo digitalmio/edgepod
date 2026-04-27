@@ -3,16 +3,13 @@ import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
-import type { EdgePodSessionMap, EdgePodContext } from "../types";
+import type { EdgePodSessionMap, EdgePodContext, JsonValue } from "../types";
 
 export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
-  protected userFunctions: Record<
-    string,
-    (...args: any[]) => Record<string, unknown> | number | string | boolean | Array<unknown>
-  > = {};
+  protected userFunctions: Record<string, (...args: any[]) => Promise<JsonValue> | JsonValue> = {};
   protected schema: Record<string, unknown> = {};
   protected migrations: { journal: unknown; migrations: Record<string, string> } | null = null;
 

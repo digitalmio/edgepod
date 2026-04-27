@@ -1,11 +1,22 @@
 import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
+import type { JsonValue } from "../types";
 
 const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
 type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
   EDGEPOD_PUBLIC_TOKEN: string;
+};
+
+// Minimal stub interface to avoid deep type instantiation through DurableObjectStub<BaseEdgePodEngine>
+type EdgePodStub = {
+  executeRpc(
+    functionName: string,
+    args: unknown,
+    headers: Record<string, string>
+  ): Promise<JsonValue> | JsonValue;
+  fetch(request: Request): Promise<Response>;
 };
 
 export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
@@ -20,7 +31,7 @@ export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
   }
 
   const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
-  const stub = env.EDGEPOD_DO.get(doId);
+  const stub = env.EDGEPOD_DO.get(doId) as unknown as EdgePodStub;
 
   // Durable Object RPC call
   if (url.pathname.startsWith("/rpc/")) {

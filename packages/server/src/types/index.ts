@@ -2,6 +2,15 @@ import type { DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 
 type ForbiddenRawMethods = "run" | "all" | "get" | "values" | "execute";
 
+// Represents any value that can be serialized to JSON — used as the return type for user functions
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 export type RawDrizzleDb<TSchema extends Record<string, unknown>> =
   DrizzleSqliteDODatabase<TSchema>;
 
