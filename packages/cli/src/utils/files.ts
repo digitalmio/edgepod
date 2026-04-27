@@ -65,10 +65,10 @@ export const createFiles = async (projectRoot: string) => {
   }
 };
 
-export const generateWranglerFromTemplate = async (projectRoot: string, token: string) => {
+export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: string) => {
   const wranglerJsonPath = `${projectRoot}/wrangler.json`;
 
-  await fs.writeFile(wranglerJsonPath, wranglerJsonTemplate(token), { flag: "wx" });
+  await fs.writeFile(wranglerJsonPath, wranglerJsonTemplate(apiKey), { flag: "wx" });
 
   consola.success("Created wrangler.json.");
 };

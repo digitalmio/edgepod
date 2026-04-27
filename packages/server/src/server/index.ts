@@ -6,7 +6,7 @@ const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
 type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
-  EDGEPOD_PUBLIC_TOKEN: string;
+  EDGEPOD_API_KEY: string;
 };
 
 // Minimal stub interface to avoid deep type instantiation through DurableObjectStub<BaseEdgePodEngine>
@@ -22,11 +22,10 @@ type EdgePodStub = {
 export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
   const url = new URL(request.url);
 
-  // Token auth — WebSocket upgrades can't send custom headers, so also accept ?token= query param
-  const token =
-    request.headers.get("Authorization")?.replace("Bearer ", "") ?? url.searchParams.get("token");
+  // API key auth — WebSocket upgrades can't send custom headers, so also accept ?key= query param
+  const apiKey = request.headers.get("X-Edgepod-Key") ?? url.searchParams.get("key");
 
-  if (!token || token !== env.EDGEPOD_PUBLIC_TOKEN) {
+  if (!apiKey || apiKey !== env.EDGEPOD_API_KEY) {
     return new Response("Unauthorized", { status: 401, headers: serverHeader });
   }
 

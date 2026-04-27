@@ -3,17 +3,17 @@ import { consola } from "consola";
 import { execa } from "execa";
 import { findRootPath, findWrangler } from "../utils/findFiles";
 
-const readTokenFromWrangler = async (wranglerPath: string): Promise<string | null> => {
+const readApiKeyFromWrangler = async (wranglerPath: string): Promise<string | null> => {
   const content = await fs.readFile(wranglerPath, "utf-8");
 
   if (wranglerPath.endsWith(".toml")) {
-    const match = content.match(/EDGEPOD_PUBLIC_TOKEN\s*=\s*"([^"]+)"/);
+    const match = content.match(/EDGEPOD_API_KEY\s*=\s*"([^"]+)"/);
     return match?.[1] ?? null;
   }
 
   try {
     const json = JSON.parse(content);
-    return json?.vars?.EDGEPOD_PUBLIC_TOKEN ?? null;
+    return json?.vars?.EDGEPOD_API_KEY ?? null;
   } catch {
     return null;
   }
@@ -32,22 +32,22 @@ export const deployCommand = async () => {
     process.exit(1);
   }
 
-  const token = await readTokenFromWrangler(wranglerPath);
+  const apiKey = await readApiKeyFromWrangler(wranglerPath);
 
-  if (!token) {
-    consola.error("EDGEPOD_PUBLIC_TOKEN not found in wrangler config. Run edgepod init first.");
+  if (!apiKey) {
+    consola.error("EDGEPOD_API_KEY not found in wrangler config. Run edgepod init first.");
     process.exit(1);
   }
 
-  consola.start("Setting EDGEPOD_PUBLIC_TOKEN as a Wrangler secret...");
+  consola.start("Setting EDGEPOD_API_KEY as a Wrangler secret...");
 
   try {
-    const proc = execa("wrangler", ["secret", "put", "EDGEPOD_PUBLIC_TOKEN"], {
+    const proc = execa("wrangler", ["secret", "put", "EDGEPOD_API_KEY"], {
       cwd: rootPath,
       stdio: ["pipe", "inherit", "inherit"],
     });
 
-    proc.stdin?.write(token);
+    proc.stdin?.write(apiKey);
     proc.stdin?.end();
 
     await proc;
@@ -83,7 +83,7 @@ export const deployCommand = async () => {
   console.log("");
   consola.success("Deployed successfully.");
   console.log("");
-  consola.info(`Public token:  ${token}`);
+  consola.info(`API key:       ${apiKey}`);
   if (publicUrl) {
     consola.info(`Worker URL:    ${publicUrl}`);
   }

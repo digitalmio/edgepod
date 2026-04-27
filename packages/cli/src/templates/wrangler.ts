@@ -1,4 +1,4 @@
-export const wranglerJsonTemplate = (token: string) => {
+export const wranglerJsonTemplate = (apiKey: string) => {
   const date = new Date().toISOString().split("T")[0];
 
   return `{
@@ -9,7 +9,7 @@ export const wranglerJsonTemplate = (token: string) => {
     "nodejs_compat"
   ],
   "vars": {
-    "EDGEPOD_PUBLIC_TOKEN": "${token}"
+    "EDGEPOD_API_KEY": "${apiKey}"
   },
   "durable_objects": {
     "bindings": [

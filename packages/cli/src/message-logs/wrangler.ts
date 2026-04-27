@@ -8,7 +8,7 @@ const snippet = (text: string) => {
   return `\x1b[3;36m${indented}\x1b[0m`;
 };
 
-export const showWranglerConfigMessage = (wranglerPath: string, token: string) => {
+export const showWranglerConfigMessage = (wranglerPath: string, apiKey: string) => {
   const type = wranglerPath.endsWith("wrangler.toml") ? "toml" : "json";
 
   if (type === "toml") {
@@ -17,7 +17,7 @@ export const showWranglerConfigMessage = (wranglerPath: string, token: string) =
     console.log(
       snippet(`
 [vars]
-EDGEPOD_PUBLIC_TOKEN = "${token}"
+EDGEPOD_API_KEY = "${apiKey}"
 
 [[durable_objects.bindings]]
 name = "EDGEPOD_DO"
@@ -38,7 +38,7 @@ fallthrough = true`)
     console.log(
       snippet(`
 "vars": {
-  "EDGEPOD_PUBLIC_TOKEN": "${token}"
+  "EDGEPOD_API_KEY": "${apiKey}"
 },
 "durable_objects": {
   "bindings": [
