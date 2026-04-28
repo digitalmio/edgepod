@@ -1,11 +1,6 @@
 import { consola } from "consola";
 import { showWranglerConfigMessage } from "../message-logs/wrangler";
-import {
-  createEdgepodDirectories,
-  createFiles,
-  generateWranglerFromTemplate,
-  updateGitignore,
-} from "../utils/files";
+import { createFiles, generateWranglerFromTemplate, updateGitignore } from "../utils/files";
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
@@ -31,7 +26,6 @@ export const initCommand = async () => {
   const apiKey = `ep_pk_${crypto.randomUUID()}`;
 
   try {
-    await createEdgepodDirectories(rootPath);
     await createFiles(rootPath);
     await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
