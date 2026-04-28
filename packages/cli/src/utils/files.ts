@@ -67,7 +67,7 @@ export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: 
 
 export const updateGitignore = async (projectRoot: string) => {
   const gitignorePath = `${projectRoot}/.gitignore`;
-  const entries = [".env", "edgepod/.wrangler"];
+  const entries = [".env", "edgepod/.wrangler", "node_modules"];
 
   let existing = "";
   try {
