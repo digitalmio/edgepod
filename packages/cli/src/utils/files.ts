@@ -8,29 +8,13 @@ import { serverTemplate } from "../templates/server";
 
 export const createEdgepodDirectories = async (projectRoot: string) => {
   const edgepodRootDir = `${projectRoot}/edgepod`;
-  const subdirectories = ["functions", ".generated/migrations", ".internal/server"];
+  const subdirectories = ["functions", ".generated/migrations"];
 
   for (const subdir of subdirectories) {
     await fs.mkdir(`${edgepodRootDir}/${subdir}`, { recursive: true });
   }
 
   consola.success("Created project directories.");
-};
-
-export const createLocalEdgepodSqlDbFile = async (projectRoot: string) => {
-  const dbFilePath = `${projectRoot}/edgepod/.internal/shadow.db`;
-
-  const created = await fs
-    .writeFile(dbFilePath, "", { flag: "wx" })
-    .then(() => true)
-    .catch((e: NodeJS.ErrnoException) => {
-      if (e.code === "EEXIST") return false;
-      throw e;
-    });
-
-  if (created) {
-    consola.success("Local database file ready.");
-  }
 };
 
 export const createFiles = async (projectRoot: string) => {
@@ -73,7 +57,7 @@ export default null;
 };
 
 export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: string) => {
-  const wranglerJsonPath = `${projectRoot}/wrangler.json`;
+  const wranglerJsonPath = `${projectRoot}/edgepod/wrangler.json`;
 
   await fs.writeFile(wranglerJsonPath, wranglerJsonTemplate(apiKey), { flag: "wx" });
 

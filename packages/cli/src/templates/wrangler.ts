@@ -3,7 +3,7 @@ export const wranglerJsonTemplate = (apiKey: string) => {
 
   return `{
   "name": "edgepod-server",
-  "main": "./edgepod/.generated/server.ts",
+  "main": "./.generated/server.ts",
   "compatibility_date": "${date}",
   "compatibility_flags": [
     "nodejs_compat"
@@ -30,7 +30,7 @@ export const wranglerJsonTemplate = (apiKey: string) => {
   "rules": [
     {
       "type": "Text",
-      "globs": ["edgepod/.generated/migrations/**/*.sql"],
+      "globs": ["./.generated/migrations/**/*.sql"],
       "fallthrough": true
     }
   ]

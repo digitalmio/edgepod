@@ -5,8 +5,8 @@ export const addScriptsToPackageJson = async (rootPath: string) => {
   const packageJsonPath = `${rootPath}/package.json`;
   await updatePackage(packageJsonPath, {
     scripts: {
-      "edgepod:dev": "wrangler dev",
-      "edgepod:deploy": "edgepod deploy",
+      "edgepod:dev": "edgepod build && wrangler dev -c edgepod/wrangler.json",
+      "edgepod:deploy": "edgepod build && wrangler deploy -c edgepod/wrangler.json",
     },
   });
 

@@ -2,7 +2,6 @@ import { consola } from "consola";
 import { showWranglerConfigMessage } from "../message-logs/wrangler";
 import {
   createEdgepodDirectories,
-  createLocalEdgepodSqlDbFile,
   createFiles,
   generateWranglerFromTemplate,
 } from "../utils/files";
@@ -32,7 +31,6 @@ export const initCommand = async () => {
 
   try {
     await createEdgepodDirectories(rootPath);
-    await createLocalEdgepodSqlDbFile(rootPath);
     await createFiles(rootPath);
     await addScriptsToPackageJson(rootPath);
 
@@ -44,6 +42,8 @@ export const initCommand = async () => {
 
     console.log("");
     consola.success("🚀 Edgepod initialized successfully.");
+    consola.info(`Your API key:  ${apiKey}`);
+    consola.info("Keep this safe — you'll need it to connect clients to your EdgePod server.");
     console.log("");
 
     const runInstall = await consola.prompt(`Run ${packageManager} install now?`, {
