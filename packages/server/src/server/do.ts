@@ -124,7 +124,13 @@ export class BaseEdgePodEngine extends DurableObject {
     };
 
     // Execute the user's code
-    const data = await handler(edgepodCtx, args);
+    let data: Awaited<ReturnType<typeof handler>>;
+    try {
+      data = await handler(edgepodCtx, args);
+    } catch (e) {
+      // Re-throw as a plain Error so the DO runtime doesn't swallow the message
+      throw new Error(e instanceof Error ? e.message : String(e), { cause: e });
+    }
 
     if (tablesWritten.size > 0) {
       this.broadcastInvalidations(Array.from(tablesWritten));

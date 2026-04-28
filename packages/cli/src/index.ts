@@ -1,11 +1,13 @@
 #!/usr/bin/env tsx
 import cac from "cac";
 import { initCommand } from "./commands/init";
+import { buildCommand } from "./commands/build";
 import { deployCommand } from "./commands/deploy";
 
 const cli = cac("edgepod");
 
 cli.command("init", "Initialize a new Edgepod project").action(initCommand);
+cli.command("build", "Generate migrations and prepare for deployment").action(buildCommand);
 cli.command("deploy", "Set secrets and deploy with Wrangler").action(deployCommand);
 
 // Default command — same as `init`

@@ -22,7 +22,7 @@ export const wranglerJsonTemplate = (apiKey: string) => {
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": [
+      "new_sqlite_classes": [
         "EdgePodEngine"
       ]
     }

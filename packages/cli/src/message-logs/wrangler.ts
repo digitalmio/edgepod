@@ -25,7 +25,7 @@ class_name = "EdgePodEngine"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["EdgePodEngine"]
+new_sqlite_classes = ["EdgePodEngine"]
 
 [[rules]]
 type = "Text"
@@ -51,7 +51,7 @@ fallthrough = true`)
 "migrations": [
   {
     "tag": "v1",
-    "new_classes": ["EdgePodEngine"]
+    "new_sqlite_classes": ["EdgePodEngine"]
   }
 ],
 "rules": [
