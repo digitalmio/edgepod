@@ -4,6 +4,7 @@ import {
   createEdgepodDirectories,
   createFiles,
   generateWranglerFromTemplate,
+  updateGitignore,
 } from "../utils/files";
 import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
@@ -32,6 +33,7 @@ export const initCommand = async () => {
   try {
     await createEdgepodDirectories(rootPath);
     await createFiles(rootPath);
+    await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
 
     if (wranglerPath) {

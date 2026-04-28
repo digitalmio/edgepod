@@ -63,3 +63,26 @@ export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: 
 
   consola.success("Created wrangler.json.");
 };
+
+export const updateGitignore = async (projectRoot: string) => {
+  const gitignorePath = `${projectRoot}/.gitignore`;
+  const entries = [".env", "edgepod/.wrangler"];
+
+  let existing = "";
+  try {
+    existing = await fs.readFile(gitignorePath, "utf-8");
+  } catch {
+    // file doesn't exist yet — we'll create it
+  }
+
+  const lines = existing.split("\n").map((l) => l.trim());
+  const toAdd = entries.filter((e) => !lines.includes(e));
+
+  if (toAdd.length === 0) return;
+
+  const addition =
+    (existing.endsWith("\n") || existing === "" ? "" : "\n") + toAdd.join("\n") + "\n";
+  await fs.writeFile(gitignorePath, existing + addition, "utf-8");
+
+  consola.success(`Updated .gitignore (added: ${toAdd.join(", ")}).`);
+};
