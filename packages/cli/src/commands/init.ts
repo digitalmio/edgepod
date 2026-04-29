@@ -22,6 +22,24 @@ const HINT_MAP: Record<string, string> = {
   "Middle East *": "me",
 };
 
+async function promptDataLocation(): Promise<DataLocationOptions> {
+  const jChoice = (await consola.prompt(
+    "Do you need to specify data residency compliance? (For most projects this is not required)",
+    { type: "select", options: ["None", "EU (GDPR)", "FedRAMP"] }
+  )) as string;
+
+  if (jChoice === "EU (GDPR)") return { jurisdiction: "eu" };
+  if (jChoice === "FedRAMP") return { jurisdiction: "fedramp" };
+
+  const hintChoice = (await consola.prompt(
+    "Would you like to specify a database server location hint? (* may fall back to a nearby region)",
+    { type: "select", options: ["Default location", ...Object.keys(HINT_MAP)] }
+  )) as string;
+
+  const locationHint = HINT_MAP[hintChoice];
+  return locationHint ? { locationHint } : {};
+}
+
 export const initCommand = async () => {
   console.log("");
   consola.start("Setting up your project...");
@@ -36,39 +54,13 @@ export const initCommand = async () => {
     process.exit(1);
   }
 
-  const jChoice = (await consola.prompt(
-    "Do you need to specify data residency compliance? (For most projects this is not required)",
-    {
-      type: "select",
-      options: ["None", "EU (GDPR)", "FedRAMP"],
-    }
-  )) as string;
-
-  const dataLocation: DataLocationOptions = {};
-
-  if (jChoice === "EU (GDPR)") {
-    dataLocation.jurisdiction = "eu";
-  } else if (jChoice === "FedRAMP") {
-    dataLocation.jurisdiction = "fedramp";
-  } else {
-    const hintChoice = (await consola.prompt(
-      "Would you like to specify a database server location hint? (* may fall back to a nearby region)",
-      {
-        type: "select",
-        options: ["Default location", ...Object.keys(HINT_MAP)],
-      }
-    )) as string;
-    const hint = HINT_MAP[hintChoice];
-    if (hint) dataLocation.locationHint = hint;
-  }
-
+  const dataLocation = await promptDataLocation();
   const apiKey = `ep_pk_${crypto.randomUUID()}`;
 
   try {
     await createFiles(rootPath, dataLocation);
     await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
-
     await generateWranglerFromTemplate(rootPath, apiKey);
     await writeEnvFile(rootPath, apiKey);
 

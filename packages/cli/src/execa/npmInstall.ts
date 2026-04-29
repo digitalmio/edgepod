@@ -1,19 +1,18 @@
 import { consola } from "consola";
 import { execa } from "execa";
 
-export async function runNpmInstall(
-  packageManager: "npm" | "pnpm" | "yarn" | "bun",
-  rootPath: string
-) {
-  const quietFlag: Record<string, string> = {
-    npm: "--loglevel=error",
-    pnpm: "--reporter=silent",
-    yarn: "--silent",
-    bun: "--quiet",
-  };
+type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
+const quietFlag: Record<PackageManager, string> = {
+  npm: "--loglevel=error",
+  pnpm: "--reporter=silent",
+  yarn: "--silent",
+  bun: "--quiet",
+};
+
+export async function runNpmInstall(packageManager: PackageManager, rootPath: string) {
   try {
-    await execa(packageManager, ["install", quietFlag[packageManager]].filter(Boolean), {
+    await execa(packageManager, ["install", quietFlag[packageManager]], {
       cwd: rootPath,
       stdio: "inherit",
     });
