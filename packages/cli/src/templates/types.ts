@@ -8,6 +8,7 @@ type Env = {
 }
 
 // Those are request lifecycle variables that you might want to use in your functions
+// You can override them per function by passing a second generic argument to the Ctx type (e.g. Ctx<{ myVar: string }>)
 type Variables = {
   traceId: string;
 }
@@ -19,5 +20,10 @@ type User = {
   isAdmin: boolean;
 } | null
 
-export type Ctx = EdgePodContext<typeof schema, Env, Variables, User>;
+export type Ctx<TVariables extends Record<string, any> = Variables> = EdgePodContext<
+  typeof schema,
+  Env,
+  TVariables,
+  User
+>;
 `;
