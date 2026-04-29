@@ -25,7 +25,7 @@ type EdgePodStub = {
     functionName: string,
     args: unknown,
     rpcCtx: RpcRequest
-  ): Promise<JsonValue> | JsonValue;
+  ): Promise<{ data: JsonValue; warnings: string[] }>;
   fetch(request: Request): Promise<Response>;
 };
 
@@ -89,13 +89,16 @@ export const edgePodFetch = async (
     try {
       const traceId = crypto.randomUUID();
       const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
-      const data = await stub.executeRpc(functionName, args, {
+      const { data, warnings } = await stub.executeRpc(functionName, args, {
         headers,
         user: userPayload,
         traceId,
       });
 
-      return Response.json({ success: true, data }, { headers: serverHeader });
+      return Response.json(
+        { success: true, data, ...(warnings.length > 0 ? { warnings } : {}) },
+        { headers: serverHeader }
+      );
     } catch (error) {
       const message = (error as Error).message;
       const status = message.startsWith("NOT_FOUND:") ? 404 : 500;

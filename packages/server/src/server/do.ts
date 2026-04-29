@@ -18,7 +18,7 @@ export class BaseEdgePodEngine extends DurableObject {
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env);
 
-    this.rawDb = drizzle(ctx.storage);
+    this.rawDb = drizzle(ctx.storage, { logger: true });
 
     // The Boot Sequence, aka run on every cold start (initialization or after hibernation)
     // Not awaited — blockConcurrencyWhile owns the promise internally.
@@ -89,6 +89,7 @@ export class BaseEdgePodEngine extends DurableObject {
 
     // Prepare the mutation tracker for this specific run
     const tablesWritten = new Set<string>();
+    const warnings: string[] = [];
 
     // Instantiate the Proxy
     const dbProxy = createTrackedDb(
@@ -96,7 +97,8 @@ export class BaseEdgePodEngine extends DurableObject {
       sessionId,
       this.activeSessions,
       tablesWritten,
-      this.cascadeGraph
+      this.cascadeGraph,
+      warnings
     );
 
     // Build the Context
@@ -137,7 +139,7 @@ export class BaseEdgePodEngine extends DurableObject {
       this.broadcastInvalidations(Array.from(tablesWritten));
     }
 
-    return data;
+    return { data, warnings };
   }
 
   private restoreActiveSessions() {
