@@ -1,12 +1,15 @@
 import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
 import type { JsonValue } from "../types";
+import { verifyJwt } from "./auth";
 
 const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
 type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
   EDGEPOD_API_KEY: string;
+  EDGEPOD_JWKS_URL?: string;
+  ASSETS?: Fetcher;
 };
 
 export type LocationHint = "wnam" | "enam" | "sam" | "weur" | "eeur" | "apac" | "oc" | "afr" | "me";
@@ -21,7 +24,8 @@ type EdgePodStub = {
   executeRpc(
     functionName: string,
     args: unknown,
-    headers: Record<string, string>
+    headers: Record<string, string>,
+    user: Record<string, unknown> | null
   ): Promise<JsonValue> | JsonValue;
   fetch(request: Request): Promise<Response>;
 };
@@ -38,6 +42,16 @@ export const edgePodFetch = async (
 
   if (!apiKey || apiKey !== env.EDGEPOD_API_KEY) {
     return new Response("Unauthorized", { status: 401, headers: serverHeader });
+  }
+
+  // JWT verification — if a Bearer token is present it must be valid
+  const authHeader = request.headers.get("Authorization");
+  let userPayload: Record<string, unknown> | null = null;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    const payload = await verifyJwt(authHeader.slice(7), env);
+    if (!payload) return new Response("Unauthorized", { status: 401, headers: serverHeader });
+    userPayload = payload as Record<string, unknown>;
   }
 
   const namespace = options?.jurisdiction
@@ -74,8 +88,8 @@ export const edgePodFetch = async (
     }
 
     try {
-      const headers = Object.fromEntries(request.headers.entries());
-      const data = await stub.executeRpc(functionName, args, headers);
+      const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
+      const data = await stub.executeRpc(functionName, args, headers, userPayload);
 
       return Response.json({ success: true, data }, { headers: serverHeader });
     } catch (error) {

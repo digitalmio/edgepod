@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
+import { webcrypto } from "node:crypto";
 import { consola } from "consola";
 import { functionsIndexTemplate } from "../templates/functions";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
+import type { WranglerOptions } from "../templates/wrangler";
 import { genTypesTemplate } from "../templates/types";
 import { serverTemplate } from "../templates/server";
 import type { DataLocationOptions } from "../templates/server";
@@ -48,12 +50,12 @@ export default null;
   }
 };
 
-export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: string) => {
+export const generateWranglerFromTemplate = async (projectRoot: string, opts: WranglerOptions) => {
   const wranglerJsonPath = `${projectRoot}/edgepod/wrangler.json`;
   await fs.mkdir(`${projectRoot}/edgepod`, { recursive: true });
 
   const created = await fs
-    .writeFile(wranglerJsonPath, wranglerJsonTemplate(apiKey), { flag: "wx" })
+    .writeFile(wranglerJsonPath, wranglerJsonTemplate(opts), { flag: "wx" })
     .then(() => true)
     .catch((e: NodeJS.ErrnoException) => {
       if (e.code === "EEXIST") return false;
@@ -67,11 +69,15 @@ export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: 
   }
 };
 
-export const writeEnvFile = async (projectRoot: string, apiKey: string) => {
+export const writeEnvFile = async (projectRoot: string, vars: Record<string, string>) => {
   const envPath = `${projectRoot}/edgepod/.env`;
+  const content =
+    Object.entries(vars)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n") + "\n";
 
   const created = await fs
-    .writeFile(envPath, `EDGEPOD_API_KEY=${apiKey}\n`, { flag: "wx" })
+    .writeFile(envPath, content, { flag: "wx" })
     .then(() => true)
     .catch((e: NodeJS.ErrnoException) => {
       if (e.code === "EEXIST") return false;
@@ -83,6 +89,29 @@ export const writeEnvFile = async (projectRoot: string, apiKey: string) => {
   } else {
     consola.warn("edgepod/.env already exists, skipping.");
   }
+};
+
+// Returns the private key JWK as a compact JSON string for storage in .env
+export const writeJwksFiles = async (projectRoot: string): Promise<string> => {
+  const { subtle } = webcrypto;
+  const keyPair = await subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+    "sign",
+    "verify",
+  ]);
+
+  const [privateJwk, publicJwk] = await Promise.all([
+    subtle.exportKey("jwk", keyPair.privateKey),
+    subtle.exportKey("jwk", keyPair.publicKey),
+  ]);
+
+  const jwks = { keys: [{ ...publicJwk, kid: "edgepod-local-key", use: "sig", alg: "ES256" }] };
+  const wellKnownDir = `${projectRoot}/edgepod/.generated/public/.well-known`;
+
+  await fs.mkdir(wellKnownDir, { recursive: true });
+  await fs.writeFile(`${wellKnownDir}/jwks.json`, JSON.stringify(jwks, null, 2), "utf-8");
+
+  consola.success("Generated local JWKS key pair.");
+  return JSON.stringify(privateJwk);
 };
 
 export const updateGitignore = async (projectRoot: string) => {

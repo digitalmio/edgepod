@@ -78,7 +78,12 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(functionName: string, args: any, headers: Record<string, string>) {
+  async executeRpc(
+    functionName: string,
+    args: any,
+    headers: Record<string, string>,
+    user: Record<string, unknown> | null = null
+  ) {
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
@@ -103,7 +108,7 @@ export class BaseEdgePodEngine extends DurableObject {
     const edgepodCtx: EdgePodContext<any, any, Record<string, any>> = {
       db: dbProxy as any,
       unsafeRawDb: this.rawDb,
-      user: null,
+      user,
       env: this.env,
       headers,
       log: console,
