@@ -9,57 +9,8 @@ import {
 import { findPackageManager, findRootPath } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
-import type { DataLocationOptions } from "../templates/server";
-
-const HINT_MAP: Record<string, string> = {
-  "Western North America": "wnam",
-  "Eastern North America": "enam",
-  "Western Europe": "weur",
-  "Eastern Europe": "eeur",
-  "Asia-Pacific": "apac",
-  Oceania: "oc",
-  "South America *": "sam",
-  "Africa *": "afr",
-  "Middle East *": "me",
-};
-
-type AuthChoice = { mode: "none" } | { mode: "remote"; jwksUrl: string } | { mode: "local" };
-
-async function promptDataLocation(): Promise<DataLocationOptions> {
-  const jChoice = (await consola.prompt(
-    "Do you need to specify data residency compliance? (For most projects this is not required)",
-    { type: "select", options: ["None", "EU (GDPR)", "FedRAMP"] }
-  )) as string;
-
-  if (jChoice === "EU (GDPR)") return { jurisdiction: "eu" };
-  if (jChoice === "FedRAMP") return { jurisdiction: "fedramp" };
-
-  const hintChoice = (await consola.prompt(
-    "Would you like to specify a database server location hint? (* may fall back to a nearby region)",
-    { type: "select", options: ["Default location", ...Object.keys(HINT_MAP)] }
-  )) as string;
-
-  const locationHint = HINT_MAP[hintChoice];
-  return locationHint ? { locationHint } : {};
-}
-
-async function promptAuthConfig(): Promise<AuthChoice> {
-  const choice = (await consola.prompt("Enable user authentication?", {
-    type: "select",
-    options: ["No", "Remote JWKS (Auth0, Clerk, Supabase, etc.)", "Local key pair"],
-  })) as string;
-
-  if (choice.startsWith("Remote")) {
-    const jwksUrl = (await consola.prompt("Enter your JWKS endpoint URL:", {
-      type: "text",
-    })) as string;
-    return { mode: "remote", jwksUrl };
-  }
-
-  if (choice.startsWith("Local")) return { mode: "local" };
-
-  return { mode: "none" };
-}
+import { promptDataLocation } from "../prompts/dataLocation";
+import { promptAuthConfig } from "../prompts/authConfig";
 
 export const initCommand = async () => {
   console.log("");
