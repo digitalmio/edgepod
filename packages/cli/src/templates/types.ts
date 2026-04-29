@@ -6,9 +6,13 @@ type Env = {
 }
 
 type Variables = {
-  user: { id: number; name: string } | null;
   traceId: string;
 }
 
-export type Ctx = EdgePodContext<typeof schema, Env, Variables>;
+type User = {
+  id: string;
+  isAdmin: boolean;
+} | null
+
+export type Ctx = EdgePodContext<typeof schema, Env, Variables, User>;
 `;

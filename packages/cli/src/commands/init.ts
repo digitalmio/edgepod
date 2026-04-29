@@ -8,6 +8,19 @@ import {
 import { findPackageManager, findRootPath } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
+import type { DataLocationOptions } from "../templates/server";
+
+const HINT_MAP: Record<string, string> = {
+  "Western North America": "wnam",
+  "Eastern North America": "enam",
+  "Western Europe": "weur",
+  "Eastern Europe": "eeur",
+  "Asia-Pacific": "apac",
+  Oceania: "oc",
+  "South America *": "sam",
+  "Africa *": "afr",
+  "Middle East *": "me",
+};
 
 export const initCommand = async () => {
   console.log("");
@@ -23,10 +36,36 @@ export const initCommand = async () => {
     process.exit(1);
   }
 
+  const jChoice = (await consola.prompt(
+    "Do you need to specify data residency compliance? (For most projects this is not required)",
+    {
+      type: "select",
+      options: ["None", "EU (GDPR)", "FedRAMP"],
+    }
+  )) as string;
+
+  const dataLocation: DataLocationOptions = {};
+
+  if (jChoice === "EU (GDPR)") {
+    dataLocation.jurisdiction = "eu";
+  } else if (jChoice === "FedRAMP") {
+    dataLocation.jurisdiction = "fedramp";
+  } else {
+    const hintChoice = (await consola.prompt(
+      "Would you like to specify a database server location hint? (* may fall back to a nearby region)",
+      {
+        type: "select",
+        options: ["Default location", ...Object.keys(HINT_MAP)],
+      }
+    )) as string;
+    const hint = HINT_MAP[hintChoice];
+    if (hint) dataLocation.locationHint = hint;
+  }
+
   const apiKey = `ep_pk_${crypto.randomUUID()}`;
 
   try {
-    await createFiles(rootPath);
+    await createFiles(rootPath, dataLocation);
     await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
 

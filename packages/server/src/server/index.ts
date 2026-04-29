@@ -9,6 +9,13 @@ type EdgePodEnv = {
   EDGEPOD_API_KEY: string;
 };
 
+export type LocationHint = "wnam" | "enam" | "sam" | "weur" | "eeur" | "apac" | "oc" | "afr" | "me";
+
+export type DataLocationOptions = {
+  jurisdiction?: "eu" | "fedramp";
+  locationHint?: LocationHint;
+};
+
 // Minimal stub interface to avoid deep type instantiation through DurableObjectStub<BaseEdgePodEngine>
 type EdgePodStub = {
   executeRpc(
@@ -19,7 +26,11 @@ type EdgePodStub = {
   fetch(request: Request): Promise<Response>;
 };
 
-export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
+export const edgePodFetch = async (
+  request: Request,
+  env: EdgePodEnv,
+  options?: DataLocationOptions
+) => {
   const url = new URL(request.url);
 
   // API key auth — WebSocket upgrades can't send custom headers, so also accept ?key= query param
@@ -29,8 +40,14 @@ export const edgePodFetch = async (request: Request, env: EdgePodEnv) => {
     return new Response("Unauthorized", { status: 401, headers: serverHeader });
   }
 
-  const doId = env.EDGEPOD_DO.idFromName("global-edgepod-instance");
-  const stub = env.EDGEPOD_DO.get(doId) as unknown as EdgePodStub;
+  const namespace = options?.jurisdiction
+    ? env.EDGEPOD_DO.jurisdiction(options.jurisdiction)
+    : env.EDGEPOD_DO;
+  const doId = namespace.idFromName("global-edgepod-instance");
+  const stub = env.EDGEPOD_DO.get(
+    doId,
+    options?.locationHint ? { locationHint: options.locationHint } : undefined
+  ) as unknown as EdgePodStub;
 
   // Durable Object RPC call
   if (url.pathname.startsWith("/rpc/")) {

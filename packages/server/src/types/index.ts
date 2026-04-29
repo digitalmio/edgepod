@@ -31,6 +31,7 @@ export type EdgePodContext<
   TSchema extends Record<string, unknown>,
   TEnv = Record<string, string>, // Cloudflare Env types
   TVariables extends Record<string, any> = Record<string, any>, // Typed variables for functions
+  TUser extends Record<string, unknown> | string | null = Record<string, unknown> | string | null, // Typed user object
 > = {
   // The Proxied Database (Safe) + the Raw Database (for advanced use cases with manual invalidation)
   db: EdgePodDb<TSchema>;
@@ -40,7 +41,7 @@ export type EdgePodContext<
   headers: Record<string, string>;
 
   // Future proofing
-  user: Record<string, unknown> | null;
+  user: TUser;
   log: Console; // A logger you can use inside your functions (currently just console, but could be extended in the future)
 
   // Manual Reactivity Escape Hatches
