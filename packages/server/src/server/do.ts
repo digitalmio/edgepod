@@ -4,7 +4,8 @@ import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
 import { initJwtSigner, getJwtSigner } from "./auth";
-import type { EdgePodSessionMap, EdgePodContext, JsonValue } from "../types";
+import { initLogger, createLogger } from "./logger";
+import type { EdgePodSessionMap, EdgePodContext, RpcRequest, JsonValue } from "../types";
 
 export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
@@ -27,6 +28,7 @@ export class BaseEdgePodEngine extends DurableObject {
 
       this.cascadeGraph = buildCascadeGraph(this.schema);
 
+      await initLogger();
       await initJwtSigner(this.env as any);
 
       if (this.migrations) {
@@ -75,12 +77,8 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(
-    functionName: string,
-    args: any,
-    headers: Record<string, string>,
-    user: Record<string, unknown> | null = null
-  ) {
+  async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest) {
+    const { headers, user, traceId } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
@@ -108,7 +106,7 @@ export class BaseEdgePodEngine extends DurableObject {
       user,
       env: this.env,
       headers,
-      log: console,
+      log: createLogger(traceId),
       signJwt: getJwtSigner(),
       subscribeTo: (tables: string[]) => {
         const session = this.activeSessions.get(sessionId);

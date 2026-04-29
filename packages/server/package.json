@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20260423.1",
+    "@logtape/logtape": "^2.0.5",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3"
   },

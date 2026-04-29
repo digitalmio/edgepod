@@ -1,4 +1,5 @@
 import type { DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
+import type { Logger } from "../server/logger";
 
 type ForbiddenRawMethods = "run" | "all" | "get" | "values" | "execute";
 
@@ -18,6 +19,12 @@ type EdgePodDb<TSchema extends Record<string, unknown>> = Omit<
   RawDrizzleDb<TSchema>,
   ForbiddenRawMethods
 >;
+
+export type RpcRequest = {
+  headers: Record<string, string>;
+  user: Record<string, unknown> | null;
+  traceId: string;
+};
 
 export type EdgePodSessionMap = Map<
   string,
@@ -45,7 +52,7 @@ export type EdgePodContext<
   // JWT signing — only available when EDGEPOD_JWT_PRIVATE_KEY is configured (local auth mode)
   signJwt: ((claims: Record<string, unknown>, expiresIn?: string) => Promise<string>) | null;
 
-  log: Console; // A logger you can use inside your functions (currently just console, but could be extended in the future)
+  log: Logger; // A per-request logger with traceId bound — use for structured, traceable output
 
   // Manual Reactivity Escape Hatches
   subscribeTo: (tables: string[]) => void;

@@ -1,6 +1,6 @@
 import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
-import type { JsonValue } from "../types";
+import type { JsonValue, RpcRequest } from "../types";
 import { verifyJwt } from "./auth";
 
 const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
@@ -24,8 +24,7 @@ type EdgePodStub = {
   executeRpc(
     functionName: string,
     args: unknown,
-    headers: Record<string, string>,
-    user: Record<string, unknown> | null
+    rpcCtx: RpcRequest
   ): Promise<JsonValue> | JsonValue;
   fetch(request: Request): Promise<Response>;
 };
@@ -88,8 +87,13 @@ export const edgePodFetch = async (
     }
 
     try {
+      const traceId = crypto.randomUUID();
       const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
-      const data = await stub.executeRpc(functionName, args, headers, userPayload);
+      const data = await stub.executeRpc(functionName, args, {
+        headers,
+        user: userPayload,
+        traceId,
+      });
 
       return Response.json({ success: true, data }, { headers: serverHeader });
     } catch (error) {
