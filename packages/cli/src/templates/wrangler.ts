@@ -26,13 +26,6 @@ export const wranglerJsonTemplate = (apiKey: string) => {
         "EdgePodEngine"
       ]
     }
-  ],
-  "rules": [
-    {
-      "type": "Text",
-      "globs": ["./.generated/migrations/**/*.sql"],
-      "fallthrough": true
-    }
   ]
 }
 `;

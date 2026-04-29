@@ -5,15 +5,15 @@ export async function runNpmInstall(
   packageManager: "npm" | "pnpm" | "yarn" | "bun",
   rootPath: string
 ) {
-  // We figure out the "quiet" flag based on the manager
-  const flags = [];
-  if (packageManager === "npm") flags.push("--loglevel=error");
-  if (packageManager === "pnpm") flags.push("--reporter=silent"); // pnpm's quiet mode
-  if (packageManager === "yarn") flags.push("--silent");
-  if (packageManager === "bun") flags.push("--quiet");
+  const quietFlag: Record<string, string> = {
+    npm: "--loglevel=error",
+    pnpm: "--reporter=silent",
+    yarn: "--silent",
+    bun: "--quiet",
+  };
 
   try {
-    await execa(packageManager, ["install", ...flags], {
+    await execa(packageManager, ["install", quietFlag[packageManager]].filter(Boolean), {
       cwd: rootPath,
       stdio: "inherit",
     });

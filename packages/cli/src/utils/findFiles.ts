@@ -6,9 +6,6 @@ export const findRootPath = async () => {
   return packagePath ? path.dirname(packagePath) : undefined;
 };
 
-export const findWrangler = async () =>
-  findUp(["wrangler.toml", "wrangler.jsonc", "wrangler.json"]);
-
 export const findPackageManager = async (): Promise<"npm" | "yarn" | "pnpm" | "bun"> => {
   const lockPath = await findUp([
     "pnpm-lock.yaml",

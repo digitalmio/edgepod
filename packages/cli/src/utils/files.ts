@@ -49,6 +49,7 @@ export default null;
 
 export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: string) => {
   const wranglerJsonPath = `${projectRoot}/edgepod/wrangler.json`;
+  await fs.mkdir(`${projectRoot}/edgepod`, { recursive: true });
 
   const created = await fs
     .writeFile(wranglerJsonPath, wranglerJsonTemplate(apiKey), { flag: "wx" })
@@ -65,9 +66,27 @@ export const generateWranglerFromTemplate = async (projectRoot: string, apiKey: 
   }
 };
 
+export const writeEnvFile = async (projectRoot: string, apiKey: string) => {
+  const envPath = `${projectRoot}/edgepod/.env`;
+
+  const created = await fs
+    .writeFile(envPath, `EDGEPOD_API_KEY=${apiKey}\n`, { flag: "wx" })
+    .then(() => true)
+    .catch((e: NodeJS.ErrnoException) => {
+      if (e.code === "EEXIST") return false;
+      throw e;
+    });
+
+  if (created) {
+    consola.success("Created edgepod/.env with your API key.");
+  } else {
+    consola.warn("edgepod/.env already exists, skipping.");
+  }
+};
+
 export const updateGitignore = async (projectRoot: string) => {
   const gitignorePath = `${projectRoot}/.gitignore`;
-  const entries = [".env", "edgepod/.wrangler", "node_modules"];
+  const entries = ["edgepod/.env", "edgepod/.wrangler", "!edgepod/"];
 
   let existing = "";
   try {

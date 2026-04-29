@@ -1,7 +1,11 @@
 import { consola } from "consola";
-import { showWranglerConfigMessage } from "../message-logs/wrangler";
-import { createFiles, generateWranglerFromTemplate, updateGitignore } from "../utils/files";
-import { findPackageManager, findRootPath, findWrangler } from "../utils/findFiles";
+import {
+  createFiles,
+  generateWranglerFromTemplate,
+  updateGitignore,
+  writeEnvFile,
+} from "../utils/files";
+import { findPackageManager, findRootPath } from "../utils/findFiles";
 import { addScriptsToPackageJson } from "../utils/package";
 import { runNpmInstall } from "../execa/npmInstall";
 
@@ -10,11 +14,7 @@ export const initCommand = async () => {
   consola.start("Setting up your project...");
   console.log("");
 
-  const [rootPath, wranglerPath, packageManager] = await Promise.all([
-    findRootPath(),
-    findWrangler(),
-    findPackageManager(),
-  ]);
+  const [rootPath, packageManager] = await Promise.all([findRootPath(), findPackageManager()]);
 
   if (!rootPath) {
     consola.error(
@@ -30,11 +30,8 @@ export const initCommand = async () => {
     await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
 
-    if (wranglerPath) {
-      showWranglerConfigMessage(wranglerPath, apiKey);
-    } else {
-      await generateWranglerFromTemplate(rootPath, apiKey);
-    }
+    await generateWranglerFromTemplate(rootPath, apiKey);
+    await writeEnvFile(rootPath, apiKey);
 
     console.log("");
     consola.success("🚀 Edgepod initialized successfully.");
