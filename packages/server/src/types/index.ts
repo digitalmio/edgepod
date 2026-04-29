@@ -40,8 +40,11 @@ export type EdgePodContext<
   // Original Request headers
   headers: Record<string, string>;
 
-  // Future proofing
+  // Basic auth functions
   user: TUser;
+  // JWT signing — only available when EDGEPOD_JWT_PRIVATE_KEY is configured (local auth mode)
+  signJwt: ((claims: Record<string, unknown>, expiresIn?: string) => Promise<string>) | null;
+
   log: Console; // A logger you can use inside your functions (currently just console, but could be extended in the future)
 
   // Manual Reactivity Escape Hatches

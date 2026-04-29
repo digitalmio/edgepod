@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
+import { initJwtSigner, getJwtSigner } from "./auth";
 import type { EdgePodSessionMap, EdgePodContext, JsonValue } from "../types";
 
 export class BaseEdgePodEngine extends DurableObject {
@@ -22,15 +23,11 @@ export class BaseEdgePodEngine extends DurableObject {
     // Not awaited — blockConcurrencyWhile owns the promise internally.
     // Any throw inside will terminate the DO before accepting requests.
     this.ctx.blockConcurrencyWhile(async () => {
-      // Restore sessions that survived hibernation — each socket's attachment holds its sessionId
-      // and subscribed tables. Deserialize once here so all subsequent message handlers read from
-      // the fast in-memory Map instead of calling deserializeAttachment() on every message.
       this.restoreActiveSessions();
 
-      // Build the cascade graph for this schema, used for automatic invalidation of related tables
-      // so when user updates "posts" table, any session subscribed to "comments" (which has a FK to posts with cascade)
-      // will also be invalidated automatically.
       this.cascadeGraph = buildCascadeGraph(this.schema);
+
+      await initJwtSigner(this.env as any);
 
       if (this.migrations) {
         await migrate(this.rawDb, this.migrations as any);
@@ -112,6 +109,7 @@ export class BaseEdgePodEngine extends DurableObject {
       env: this.env,
       headers,
       log: console,
+      signJwt: getJwtSigner(),
       subscribeTo: (tables: string[]) => {
         const session = this.activeSessions.get(sessionId);
         if (session) {
