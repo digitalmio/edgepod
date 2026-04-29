@@ -2,6 +2,7 @@ import { consola } from "consola";
 import {
   createFiles,
   generateWranglerFromTemplate,
+  readEnvVar,
   updateGitignore,
   writeEnvFile,
   writeJwksFiles,
@@ -28,7 +29,8 @@ export const initCommand = async () => {
 
   const dataLocation = await promptDataLocation();
   const auth = await promptAuthConfig();
-  const apiKey = `ep_pk_${crypto.randomUUID()}`;
+  const existingApiKey = await readEnvVar(rootPath, "EDGEPOD_API_KEY");
+  const apiKey = existingApiKey ?? `ep_pk_${crypto.randomUUID()}`;
   const envVars: Record<string, string> = { EDGEPOD_API_KEY: apiKey };
 
   try {
@@ -42,7 +44,12 @@ export const initCommand = async () => {
     });
 
     if (auth.mode === "local") {
-      envVars.EDGEPOD_JWT_PRIVATE_KEY = await writeJwksFiles(rootPath);
+      const existingPrivateKey = await readEnvVar(rootPath, "EDGEPOD_JWT_PRIVATE_KEY");
+      if (existingPrivateKey) {
+        envVars.EDGEPOD_JWT_PRIVATE_KEY = existingPrivateKey;
+      } else {
+        envVars.EDGEPOD_JWT_PRIVATE_KEY = await writeJwksFiles(rootPath);
+      }
     }
     await writeEnvFile(rootPath, envVars);
 

@@ -69,6 +69,18 @@ export const generateWranglerFromTemplate = async (projectRoot: string, opts: Wr
   }
 };
 
+export const readEnvVar = async (projectRoot: string, key: string): Promise<string | null> => {
+  const envPath = `${projectRoot}/edgepod/.env`;
+  let content: string;
+  try {
+    content = await fs.readFile(envPath, "utf-8");
+  } catch {
+    return null;
+  }
+  const match = content.match(new RegExp(`^${key}=(.+)$`, "m"));
+  return match?.[1]?.trim() ?? null;
+};
+
 export const writeEnvFile = async (projectRoot: string, vars: Record<string, string>) => {
   const envPath = `${projectRoot}/edgepod/.env`;
   const content =

@@ -52,15 +52,20 @@ export async function promptAuthConfig(): Promise<AuthChoice> {
   const choice = (await consola.prompt("Enable user authentication?", {
     type: "select",
     options: ["Local JWKS store", "Remote JWKS (Auth0, Clerk, Supabase, etc.)", "Skip"],
-  })) as string;
+  })) as string | symbol | undefined;
+
+  if (typeof choice !== "string") process.exit(0);
 
   if (choice.startsWith("Remote")) {
     let jwksUrl = "";
     while (true) {
-      jwksUrl = (await consola.prompt("Enter your JWKS endpoint URL:", {
+      const url = (await consola.prompt("Enter your JWKS endpoint URL:", {
         type: "text",
-      })) as string;
+      })) as string | symbol | undefined;
 
+      if (typeof url !== "string") process.exit(0);
+
+      jwksUrl = url;
       const error = await fetchJwks(jwksUrl);
       if (!error) break;
       consola.error(`Invalid JWKS URL: ${error}`);
