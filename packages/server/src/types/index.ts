@@ -24,6 +24,7 @@ export type RpcRequest = {
   headers: Record<string, string>;
   user: Record<string, unknown> | null;
   traceId: string;
+  reactive: boolean;
 };
 
 export type EdgePodSessionMap = Map<

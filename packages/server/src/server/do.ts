@@ -78,7 +78,7 @@ export class BaseEdgePodEngine extends DurableObject {
   // The RPC Execution Engine
   // aka this is where we are running user code
   async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest) {
-    const { headers, user, traceId } = rpcCtx;
+    const { headers, user, traceId, reactive } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
@@ -91,11 +91,14 @@ export class BaseEdgePodEngine extends DurableObject {
     const tablesWritten = new Set<string>();
     const warnings: string[] = [];
 
+    // When reactive is false, pass an empty session map so no table subscriptions are registered
+    const sessionMap = reactive ? this.activeSessions : new Map();
+
     // Instantiate the Proxy
     const dbProxy = createTrackedDb(
       this.rawDb,
       sessionId,
-      this.activeSessions,
+      sessionMap,
       tablesWritten,
       this.cascadeGraph,
       warnings

@@ -89,10 +89,12 @@ export const edgePodFetch = async (
     try {
       const traceId = crypto.randomUUID();
       const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
+      const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
       const { data, warnings } = await stub.executeRpc(functionName, args, {
         headers,
         user: userPayload,
         traceId,
+        reactive,
       });
 
       return Response.json(
