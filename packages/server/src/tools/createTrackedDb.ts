@@ -23,6 +23,14 @@ function recordMutationWithCascades(
   }
 }
 
+function checkResultWarnings(result: unknown, warnings: string[]) {
+  if (Array.isArray(result) && result.length === MAX_LIMIT) {
+    warnings.push(
+      `Query returned exactly ${MAX_LIMIT} rows — there may be more results. Use .limit() and .offset() to paginate.`
+    );
+  }
+}
+
 function createSelectProxy(
   builder: any,
   sessionId: string,
@@ -51,7 +59,10 @@ function createSelectProxy(
       if (prop === "then") {
         return function (resolve: any, reject: any) {
           const finalBuilder = state.limitSet ? target : target.limit(MAX_LIMIT);
-          return finalBuilder.then(resolve, reject);
+          return finalBuilder.then((result: any) => {
+            checkResultWarnings(result, warnings);
+            return resolve(result);
+          }, reject);
         };
       }
 
@@ -164,7 +175,13 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                   return function (opts: Record<string, any> = {}) {
                     const limit =
                       typeof opts.limit === "number" ? Math.min(opts.limit, MAX_LIMIT) : MAX_LIMIT;
-                    return tableTarget.findMany({ ...opts, limit });
+                    if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
+                      warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
+                    }
+                    return tableTarget.findMany({ ...opts, limit }).then((result: any[]) => {
+                      checkResultWarnings(result, warnings);
+                      return result;
+                    });
                   };
                 }
                 // findFirst is implicitly LIMIT 1 — no cap needed
