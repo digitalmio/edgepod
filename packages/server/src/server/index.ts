@@ -13,16 +13,7 @@ type EdgePodEnv = {
   ASSETS?: Fetcher;
 };
 
-export type LocationHint =
-  | "wnam"
-  | "enam"
-  | "sam"
-  | "weur"
-  | "eeur"
-  | "apac"
-  | "oc"
-  | "afr"
-  | "me";
+export type LocationHint = "wnam" | "enam" | "sam" | "weur" | "eeur" | "apac" | "oc" | "afr" | "me";
 
 export type DataLocationOptions = {
   jurisdiction?: "eu" | "fedramp";
@@ -31,24 +22,19 @@ export type DataLocationOptions = {
 
 // Minimal stub interface to avoid deep type instantiation through DurableObjectStub<BaseEdgePodEngine>
 type EdgePodStub = {
-  executeRpc(
-    functionName: string,
-    args: unknown,
-    rpcCtx: RpcRequest,
-  ): Promise<RpcResponse>;
+  executeRpc(functionName: string, args: unknown, rpcCtx: RpcRequest): Promise<RpcResponse>;
   fetch(request: Request): Promise<Response>;
 };
 
 export const edgePodFetch = async (
   request: Request,
   env: EdgePodEnv,
-  options?: DataLocationOptions,
+  options?: DataLocationOptions
 ) => {
   const url = new URL(request.url);
 
   // API key auth — WebSocket upgrades can't send custom headers, so also accept ?key= query param
-  const apiKey =
-    request.headers.get("X-Edgepod-Key") ?? url.searchParams.get("key");
+  const apiKey = request.headers.get("X-Edgepod-Key") ?? url.searchParams.get("key");
 
   if (!apiKey || apiKey !== env.EDGEPOD_API_KEY) {
     return new Response("Unauthorized", { status: 401, headers: serverHeader });
@@ -74,7 +60,7 @@ export const edgePodFetch = async (
   const doId = namespace.idFromName("global-edgepod-instance");
   const stub = env.EDGEPOD_DO.get(
     doId,
-    options?.locationHint ? { locationHint: options.locationHint } : undefined,
+    options?.locationHint ? { locationHint: options.locationHint } : undefined
   ) as unknown as EdgePodStub;
 
   // Durable Object RPC call
@@ -100,26 +86,20 @@ export const edgePodFetch = async (
     } catch {
       return Response.json(
         { success: false, error: "Invalid request body." },
-        { status: 400, headers: serverHeader },
+        { status: 400, headers: serverHeader }
       );
     }
 
     try {
       const traceId = crypto.randomUUID();
-      const headers: Record<string, string> = Object.fromEntries(
-        request.headers.entries(),
-      );
+      const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
       const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
-      const { data, meta, warnings } = await stub.executeRpc(
-        functionName,
-        args,
-        {
-          headers,
-          user: userPayload,
-          traceId,
-          reactive,
-        },
-      );
+      const { data, meta, warnings } = await stub.executeRpc(functionName, args, {
+        headers,
+        user: userPayload,
+        traceId,
+        reactive,
+      });
 
       return Response.json(
         {
@@ -128,15 +108,12 @@ export const edgePodFetch = async (
           _meta: hashMetaTableNames(meta),
           ...(warnings.length > 0 ? { warnings } : {}),
         },
-        { headers: serverHeader },
+        { headers: serverHeader }
       );
     } catch (error) {
       const message = (error as Error).message;
       const status = message.startsWith("NOT_FOUND:") ? 404 : 500;
-      return Response.json(
-        { success: false, error: message },
-        { status, headers: serverHeader },
-      );
+      return Response.json({ success: false, error: message }, { status, headers: serverHeader });
     }
   }
 

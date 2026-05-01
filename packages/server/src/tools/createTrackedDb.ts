@@ -142,8 +142,12 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
           const tableName = getTableName(table) ?? "unknown";
 
           if (tableName !== "unknown") {
-            // record the mutation AND automatically flag cascading children
-            recordMutationWithCascades(tableName, tablesWritten, cascadeGraph);
+            // Only deletes trigger ON DELETE CASCADE — pass an empty graph for insert/update
+            recordMutationWithCascades(
+              tableName,
+              tablesWritten,
+              prop === "delete" ? cascadeGraph : new Map(),
+            );
           }
 
           const builder = (target as any)[prop].apply(target, [

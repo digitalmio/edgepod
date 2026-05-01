@@ -8,7 +8,7 @@ function hashTableName(str: string): string {
 }
 
 export const hashMetaTableNames = (
-  data: { changed: string[]; read: string[] } = { changed: [], read: [] },
+  data: { changed: string[]; read: string[] } = { changed: [], read: [] }
 ) => ({
   read: data.read.map(hashTableName),
   changed: data.changed.map(hashTableName),
