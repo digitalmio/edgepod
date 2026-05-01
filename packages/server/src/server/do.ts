@@ -5,15 +5,27 @@ import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
 import { initJwtSigner, getJwtSigner } from "./auth";
 import { initLogger, createLogger } from "./logger";
-import type { EdgePodSessionMap, EdgePodContext, RpcRequest, JsonValue } from "../types";
+import type {
+  EdgePodSessionMap,
+  EdgePodContext,
+  RpcRequest,
+  RpcResponse,
+  JsonValue,
+} from "../types";
 
 export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
-  protected userFunctions: Record<string, (...args: any[]) => Promise<JsonValue> | JsonValue> = {};
+  protected userFunctions: Record<
+    string,
+    (...args: any[]) => Promise<JsonValue> | JsonValue
+  > = {};
   protected schema: Record<string, unknown> = {};
-  protected migrations: { journal: unknown; migrations: Record<string, string> } | null = null;
+  protected migrations: {
+    journal: unknown;
+    migrations: Record<string, string>;
+  } | null = null;
 
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env);
@@ -51,7 +63,10 @@ export class BaseEdgePodEngine extends DurableObject {
       this.ctx.acceptWebSocket(server);
 
       // Serialize the sessionId as a hibernation-safe attachment so it can be restored on wake
-      server.serializeAttachment({ sessionId, listeningToTables: [] as string[] });
+      server.serializeAttachment({
+        sessionId,
+        listeningToTables: [] as string[],
+      });
 
       // Register the new session in RAM
       this.activeSessions.set(sessionId, {
@@ -66,7 +81,12 @@ export class BaseEdgePodEngine extends DurableObject {
   }
 
   // Handle WebSocket disconnects to prevent memory leaks
-  override webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean) {
+  override webSocketClose(
+    ws: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean,
+  ) {
     for (const [sessionId, session] of this.activeSessions.entries()) {
       if (session.socket === ws) {
         this.activeSessions.delete(sessionId);
@@ -77,17 +97,23 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest) {
+  async executeRpc(
+    functionName: string,
+    args: any,
+    rpcCtx: RpcRequest,
+  ): Promise<RpcResponse> {
     const { headers, user, traceId, reactive } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
-    if (!handler) throw new Error(`NOT_FOUND: Function "${functionName}" not found.`);
+    if (!handler)
+      throw new Error(`NOT_FOUND: Function "${functionName}" not found.`);
 
     // session variable store
     const variableStore = new Map();
 
-    // Prepare the mutation tracker for this specific run
+    // Prepare the read/write trackers for this specific run
+    const tablesRead = new Set<string>();
     const tablesWritten = new Set<string>();
     const warnings: string[] = [];
 
@@ -99,9 +125,10 @@ export class BaseEdgePodEngine extends DurableObject {
       this.rawDb,
       sessionId,
       sessionMap,
+      tablesRead,
       tablesWritten,
       this.cascadeGraph,
-      warnings
+      warnings,
     );
 
     // Build the Context
@@ -124,7 +151,8 @@ export class BaseEdgePodEngine extends DurableObject {
           });
         }
       },
-      invalidate: (tables: string[]) => tables.forEach((t: string) => tablesWritten.add(t)),
+      invalidate: (tables: string[]) =>
+        tables.forEach((t: string) => tablesWritten.add(t)),
       set: (key: string, value: any) => variableStore.set(key, value),
       get: (key: string) => variableStore.get(key) as any,
     };
@@ -142,7 +170,11 @@ export class BaseEdgePodEngine extends DurableObject {
       this.broadcastInvalidations(Array.from(tablesWritten));
     }
 
-    return { data, warnings };
+    return {
+      data,
+      meta: { read: [...tablesRead], changed: [...tablesWritten] },
+      warnings,
+    };
   }
 
   private restoreActiveSessions() {

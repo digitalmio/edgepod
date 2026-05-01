@@ -1,0 +1,27 @@
+{
+  "name": "@edgepod/client",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "partysocket": "^1.1.18",
+    "swr": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "react": "^18.3.1"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

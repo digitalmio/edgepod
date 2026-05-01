@@ -9,7 +9,7 @@ const MAX_LIMIT = 1000;
 function recordMutationWithCascades(
   tableName: string,
   tablesWritten: Set<string>,
-  cascadeGraph: Map<string, Set<string>>
+  cascadeGraph: Map<string, Set<string>>,
 ) {
   if (tablesWritten.has(tableName)) return; // Prevent infinite loops
 
@@ -26,7 +26,7 @@ function recordMutationWithCascades(
 function checkResultWarnings(result: unknown, warnings: string[]) {
   if (Array.isArray(result) && result.length === MAX_LIMIT) {
     warnings.push(
-      `Query returned exactly ${MAX_LIMIT} rows — there may be more results. Use .limit() and .offset() to paginate.`
+      `Query returned exactly ${MAX_LIMIT} rows — there may be more results. Use .limit() and .offset() to paginate.`,
     );
   }
 }
@@ -35,8 +35,9 @@ function createSelectProxy(
   builder: any,
   sessionId: string,
   activeSessions: EdgePodSessionMap,
+  tablesRead: Set<string>,
   warnings: string[],
-  state = { limitSet: false }
+  state = { limitSet: false },
 ): any {
   return new Proxy(builder, {
     get(target, prop: string) {
@@ -50,15 +51,18 @@ function createSelectProxy(
             target.limit(Math.min(n, MAX_LIMIT)),
             sessionId,
             activeSessions,
+            tablesRead,
             warnings,
-            state
+            state,
           );
         };
       }
 
       if (prop === "then") {
         return function (resolve: any, reject: any) {
-          const finalBuilder = state.limitSet ? target : target.limit(MAX_LIMIT);
+          const finalBuilder = state.limitSet
+            ? target
+            : target.limit(MAX_LIMIT);
           return finalBuilder.then((result: any) => {
             checkResultWarnings(result, warnings);
             return resolve(result);
@@ -70,13 +74,17 @@ function createSelectProxy(
         return function (table: any, ...restArgs: any[]) {
           const tableName = getTableName(table) ?? "unknown";
           const session = activeSessions.get(sessionId);
-          if (session && tableName !== "unknown") session.listeningToTables.add(tableName);
+          if (tableName !== "unknown") {
+            if (session) session.listeningToTables.add(tableName);
+            tablesRead.add(tableName);
+          }
           return createSelectProxy(
             target[prop](table, ...restArgs),
             sessionId,
             activeSessions,
+            tablesRead,
             warnings,
-            state
+            state,
           );
         };
       }
@@ -86,7 +94,14 @@ function createSelectProxy(
         return function (...args: any[]) {
           const result = value.apply(target, args);
           if (result && typeof result === "object" && "then" in result) {
-            return createSelectProxy(result, sessionId, activeSessions, warnings, state);
+            return createSelectProxy(
+              result,
+              sessionId,
+              activeSessions,
+              tablesRead,
+              warnings,
+              state,
+            );
           }
           return result;
         };
@@ -105,9 +120,10 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
   realDb: RawDrizzleDb<TSchema>,
   sessionId: string,
   activeSessions: EdgePodSessionMap,
+  tablesRead: Set<string>,
   tablesWritten: Set<string>,
   cascadeGraph: Map<string, Set<string>>,
-  warnings: string[]
+  warnings: string[],
 ) {
   return new Proxy(realDb, {
     get(target, prop: string) {
@@ -116,7 +132,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
         throw new Error(
           `[EdgePod] Raw SQL execution via 'ctx.db.${prop}()' is blocked to preserve real-time reactivity.
 Please use the standard Drizzle query builder (e.g., ctx.db.select(), ctx.db.update()).
-If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.invalidate()' manually.`
+If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.invalidate()' manually.`,
         );
       }
 
@@ -130,7 +146,10 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
             recordMutationWithCascades(tableName, tablesWritten, cascadeGraph);
           }
 
-          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
+          const builder = (target as any)[prop].apply(target, [
+            table,
+            ...restArgs,
+          ]);
 
           // Cap bulk inserts — intercept .values() on the insert builder
           if (prop === "insert") {
@@ -141,14 +160,16 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                     if (Array.isArray(rows) && rows.length > MAX_LIMIT) {
                       throw new Error(
                         `[EdgePod] Bulk insert blocked: ${rows.length} rows exceeds the ${MAX_LIMIT}-row limit. ` +
-                          `Split your data into batches of ${MAX_LIMIT} or fewer.`
+                          `Split your data into batches of ${MAX_LIMIT} or fewer.`,
                       );
                     }
                     return builderTarget.values(rows);
                   };
                 }
                 const value = builderTarget[builderProp];
-                return typeof value === "function" ? value.bind(builderTarget) : value;
+                return typeof value === "function"
+                  ? value.bind(builderTarget)
+                  : value;
               },
             });
           }
@@ -166,6 +187,7 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
           get(queryTarget, tableProp: string) {
             const session = activeSessions.get(sessionId);
             if (session) session.listeningToTables.add(tableProp);
+            tablesRead.add(tableProp);
 
             const tableApi = queryTarget[tableProp];
 
@@ -174,19 +196,30 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                 if (method === "findMany") {
                   return function (opts: Record<string, any> = {}) {
                     const limit =
-                      typeof opts.limit === "number" ? Math.min(opts.limit, MAX_LIMIT) : MAX_LIMIT;
-                    if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
-                      warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
+                      typeof opts.limit === "number"
+                        ? Math.min(opts.limit, MAX_LIMIT)
+                        : MAX_LIMIT;
+                    if (
+                      typeof opts.limit === "number" &&
+                      opts.limit > MAX_LIMIT
+                    ) {
+                      warnings.push(
+                        `Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`,
+                      );
                     }
-                    return tableTarget.findMany({ ...opts, limit }).then((result: any[]) => {
-                      checkResultWarnings(result, warnings);
-                      return result;
-                    });
+                    return tableTarget
+                      .findMany({ ...opts, limit })
+                      .then((result: any[]) => {
+                        checkResultWarnings(result, warnings);
+                        return result;
+                      });
                   };
                 }
                 // findFirst is implicitly LIMIT 1 — no cap needed
                 const value = tableTarget[method];
-                return typeof value === "function" ? value.bind(tableTarget) : value;
+                return typeof value === "function"
+                  ? value.bind(tableTarget)
+                  : value;
               },
             });
           },
@@ -200,7 +233,8 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
             (target as any)[prop].apply(target, args),
             sessionId,
             activeSessions,
-            warnings
+            tablesRead,
+            warnings,
           );
         };
       }

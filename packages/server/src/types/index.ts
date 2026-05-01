@@ -27,6 +27,17 @@ export type RpcRequest = {
   reactive: boolean;
 };
 
+export type RpcMeta = {
+  read: string[];
+  changed: string[];
+};
+
+export type RpcResponse = {
+  data: JsonValue;
+  meta: RpcMeta;
+  warnings: string[];
+};
+
 export type EdgePodSessionMap = Map<
   string,
   {
