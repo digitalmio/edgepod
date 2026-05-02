@@ -57,7 +57,7 @@ async function resolveSigningKey(env: AuthEnv): Promise<CryptoKey | null> {
 export async function verifyJwt(
   token: string,
   env: AuthEnv,
-  options?: JWTClaimVerificationOptions
+  options?: JWTClaimVerificationOptions,
 ): Promise<JWTPayload | null> {
   const keyGetter = await resolveJwks(env);
   if (!keyGetter) return null;

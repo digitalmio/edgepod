@@ -112,7 +112,7 @@ function doSomething(email: string) {
     authClient.someMethod({ email }).then(({ error }) => {
       if (error) throw new Error(error.message ?? "Fallback message.");
     }),
-    (e) => (e instanceof Error ? e.message : "Fallback message.")
+    (e) => (e instanceof Error ? e.message : "Fallback message."),
   );
 }
 ```

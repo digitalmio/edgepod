@@ -4,7 +4,7 @@ import { consola } from "consola";
 const runWrangler = async (
   args: string[],
   cwd: string,
-  exitOnAuthError = true
+  exitOnAuthError = true,
 ): Promise<string | null> => {
   try {
     const { stdout } = await execa("wrangler", args, { cwd, preferLocal: true });
@@ -28,7 +28,7 @@ const runWrangler = async (
 };
 
 export const wranglerDeploymentsList = async (
-  cwd: string
+  cwd: string,
 ): Promise<Array<{ url?: string; script_url?: string }> | null> => {
   const stdout = await runWrangler(["deployments", "list", "--json"], cwd, false);
   if (stdout === null) return null;

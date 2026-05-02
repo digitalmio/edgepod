@@ -16,7 +16,7 @@ const HINT_MAP: Record<string, string> = {
 export async function promptDataLocation(): Promise<DataLocationOptions> {
   const jurisdictionChoice = (await consola.prompt(
     "Do you need to specify data residency compliance? (For most projects this is not required)",
-    { type: "select", options: ["None", "EU (GDPR)", "FedRAMP"] }
+    { type: "select", options: ["None", "EU (GDPR)", "FedRAMP"] },
   )) as string | symbol | undefined;
 
   if (typeof jurisdictionChoice !== "string") process.exit(0);
@@ -26,7 +26,7 @@ export async function promptDataLocation(): Promise<DataLocationOptions> {
 
   const hintChoice = (await consola.prompt(
     "Would you like to specify a database server location hint? (* may fall back to a nearby region)",
-    { type: "select", options: ["Default location", ...Object.keys(HINT_MAP)] }
+    { type: "select", options: ["Default location", ...Object.keys(HINT_MAP)] },
   )) as string | symbol | undefined;
 
   if (typeof hintChoice !== "string") process.exit(0);

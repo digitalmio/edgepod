@@ -22,7 +22,7 @@ export const initCommand = async () => {
 
   if (!rootPath) {
     consola.error(
-      "No package.json found. Please run your package manager's init command first (e.g. npm init)."
+      "No package.json found. Please run your package manager's init command first (e.g. npm init).",
     );
     process.exit(1);
   }

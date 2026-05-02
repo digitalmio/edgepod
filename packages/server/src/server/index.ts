@@ -105,7 +105,7 @@ export const edgePodFetch = async (
         {
           success: true,
           data,
-          _meta: hashMetaTableNames(meta.read),
+          _meta: { t: hashMetaTableNames(meta.read) },
           ...(warnings.length > 0 ? { warnings } : {}),
         },
         { headers: serverHeader },

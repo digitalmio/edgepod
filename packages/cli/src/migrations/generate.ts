@@ -52,7 +52,7 @@ async function loadJson<T>(filePath: string, fallback: () => T): Promise<T> {
 async function writeMigrationsIndex(
   outputDir: string,
   journal: Journal,
-  sqlContents: Map<string, string>
+  sqlContents: Map<string, string>,
 ): Promise<void> {
   const migrationsObj = journal.entries
     .map((e) => {
@@ -77,7 +77,7 @@ ${migrationsObj}
 
 async function warnColumnTypeChanges(
   prev: DrizzleSQLiteSnapshotJSON,
-  cur: DrizzleSQLiteSnapshotJSON
+  cur: DrizzleSQLiteSnapshotJSON,
 ): Promise<void> {
   const changes: { table: string; column: string; from: string; to: string }[] = [];
   const prevTables = (prev as unknown as SnapshotTables).tables;
@@ -117,7 +117,7 @@ async function warnColumnTypeChanges(
 export async function generateMigrationFiles(
   rootPath: string,
   schemaRelPath: string = "edgepod/schema.ts",
-  outputRelDir: string = "edgepod/.generated/migrations"
+  outputRelDir: string = "edgepod/.generated/migrations",
 ): Promise<void> {
   const absSchemaPath = path.resolve(rootPath, schemaRelPath);
   const absOutputDir = path.resolve(rootPath, outputRelDir);
@@ -149,12 +149,12 @@ export async function generateMigrationFiles(
       fs.writeFile(
         path.join(absOutputDir, JOURNAL_FILE),
         JSON.stringify(journal, null, 2),
-        "utf-8"
+        "utf-8",
       ),
       fs.writeFile(
         path.join(absOutputDir, SNAPSHOT_FILE),
         JSON.stringify(curSnapshot, null, 2),
-        "utf-8"
+        "utf-8",
       ),
     ]);
 

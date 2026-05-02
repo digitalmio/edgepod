@@ -41,7 +41,7 @@ async function fetchJwks(url: string): Promise<string | null> {
 
   const invalid = keys.find(
     (k) =>
-      typeof k !== "object" || k === null || typeof (k as Record<string, unknown>).kty !== "string"
+      typeof k !== "object" || k === null || typeof (k as Record<string, unknown>).kty !== "string",
   );
   if (invalid) return 'One or more keys are missing the required "kty" field.';
 

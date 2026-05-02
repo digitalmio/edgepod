@@ -35,7 +35,7 @@ export default null;
           if (e.code === "EEXIST") return false;
           throw e;
         });
-    })
+    }),
   );
 
   const created = results.filter(Boolean).length;

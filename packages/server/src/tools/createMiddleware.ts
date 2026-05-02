@@ -1,11 +1,11 @@
 // Creates a middleware wrapper for EdgePod functions
 // Uses the familiar (ctx, args, next) Hono-like pattern
 export function createMiddleware<TCtx, TMiddlewareArgs = any>(
-  middlewareLogic: (ctx: TCtx, args: TMiddlewareArgs, next: () => Promise<any>) => Promise<any>
+  middlewareLogic: (ctx: TCtx, args: TMiddlewareArgs, next: () => Promise<any>) => Promise<any>,
 ) {
   // this is the actual middleware HOC returned to the user (e.g., `withProjectAccess`)
   return <TArgs extends TMiddlewareArgs, TReturn>(
-    handler: (ctx: TCtx, args: TArgs) => Promise<TReturn>
+    handler: (ctx: TCtx, args: TArgs) => Promise<TReturn>,
   ) => {
     // return the final wrapped function that user will call
     return async (ctx: TCtx, args: TArgs): Promise<TReturn> => {

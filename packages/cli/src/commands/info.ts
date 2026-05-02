@@ -58,7 +58,7 @@ export const infoCommand = async () => {
       consola.log(`  Worker URL:   ${url}`);
     } else {
       consola.log(
-        "  Worker URL:   not deployed yet — run `wrangler deploy -c edgepod/wrangler.json`"
+        "  Worker URL:   not deployed yet — run `wrangler deploy -c edgepod/wrangler.json`",
       );
     }
   }
