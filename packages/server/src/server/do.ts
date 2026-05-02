@@ -12,15 +12,13 @@ import type {
   RpcResponse,
   JsonValue,
 } from "../types";
+import { hashMetaTableNames } from "../tools/hashTableName";
 
 export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
-  protected userFunctions: Record<
-    string,
-    (...args: any[]) => Promise<JsonValue> | JsonValue
-  > = {};
+  protected userFunctions: Record<string, (...args: any[]) => Promise<JsonValue> | JsonValue> = {};
   protected schema: Record<string, unknown> = {};
   protected migrations: {
     journal: unknown;
@@ -81,12 +79,7 @@ export class BaseEdgePodEngine extends DurableObject {
   }
 
   // Handle WebSocket disconnects to prevent memory leaks
-  override webSocketClose(
-    ws: WebSocket,
-    _code: number,
-    _reason: string,
-    _wasClean: boolean,
-  ) {
+  override webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean) {
     for (const [sessionId, session] of this.activeSessions.entries()) {
       if (session.socket === ws) {
         this.activeSessions.delete(sessionId);
@@ -97,17 +90,12 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(
-    functionName: string,
-    args: any,
-    rpcCtx: RpcRequest,
-  ): Promise<RpcResponse> {
+  async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest): Promise<RpcResponse> {
     const { headers, user, traceId, reactive } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
-    if (!handler)
-      throw new Error(`NOT_FOUND: Function "${functionName}" not found.`);
+    if (!handler) throw new Error(`NOT_FOUND: Function "${functionName}" not found.`);
 
     // session variable store
     const variableStore = new Map();
@@ -151,8 +139,7 @@ export class BaseEdgePodEngine extends DurableObject {
           });
         }
       },
-      invalidate: (tables: string[]) =>
-        tables.forEach((t: string) => tablesWritten.add(t)),
+      invalidate: (tables: string[]) => tables.forEach((t: string) => tablesWritten.add(t)),
       set: (key: string, value: any) => variableStore.set(key, value),
       get: (key: string) => variableStore.get(key) as any,
     };
@@ -167,7 +154,8 @@ export class BaseEdgePodEngine extends DurableObject {
     }
 
     if (tablesWritten.size > 0) {
-      this.broadcastInvalidations(Array.from(tablesWritten));
+      const hashedTableNames = hashMetaTableNames(Array.from(tablesWritten));
+      this.broadcastInvalidations(hashedTableNames);
     }
 
     return {

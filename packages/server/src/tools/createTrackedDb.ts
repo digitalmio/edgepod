@@ -60,9 +60,7 @@ function createSelectProxy(
 
       if (prop === "then") {
         return function (resolve: any, reject: any) {
-          const finalBuilder = state.limitSet
-            ? target
-            : target.limit(MAX_LIMIT);
+          const finalBuilder = state.limitSet ? target : target.limit(MAX_LIMIT);
           return finalBuilder.then((result: any) => {
             checkResultWarnings(result, warnings);
             return resolve(result);
@@ -150,10 +148,7 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
             );
           }
 
-          const builder = (target as any)[prop].apply(target, [
-            table,
-            ...restArgs,
-          ]);
+          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
 
           // Cap bulk inserts — intercept .values() on the insert builder
           if (prop === "insert") {
@@ -171,9 +166,7 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                   };
                 }
                 const value = builderTarget[builderProp];
-                return typeof value === "function"
-                  ? value.bind(builderTarget)
-                  : value;
+                return typeof value === "function" ? value.bind(builderTarget) : value;
               },
             });
           }
@@ -200,30 +193,19 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                 if (method === "findMany") {
                   return function (opts: Record<string, any> = {}) {
                     const limit =
-                      typeof opts.limit === "number"
-                        ? Math.min(opts.limit, MAX_LIMIT)
-                        : MAX_LIMIT;
-                    if (
-                      typeof opts.limit === "number" &&
-                      opts.limit > MAX_LIMIT
-                    ) {
-                      warnings.push(
-                        `Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`,
-                      );
+                      typeof opts.limit === "number" ? Math.min(opts.limit, MAX_LIMIT) : MAX_LIMIT;
+                    if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
+                      warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
                     }
-                    return tableTarget
-                      .findMany({ ...opts, limit })
-                      .then((result: any[]) => {
-                        checkResultWarnings(result, warnings);
-                        return result;
-                      });
+                    return tableTarget.findMany({ ...opts, limit }).then((result: any[]) => {
+                      checkResultWarnings(result, warnings);
+                      return result;
+                    });
                   };
                 }
                 // findFirst is implicitly LIMIT 1 — no cap needed
                 const value = tableTarget[method];
-                return typeof value === "function"
-                  ? value.bind(tableTarget)
-                  : value;
+                return typeof value === "function" ? value.bind(tableTarget) : value;
               },
             });
           },

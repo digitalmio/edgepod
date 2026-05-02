@@ -29,7 +29,7 @@ type EdgePodStub = {
 export const edgePodFetch = async (
   request: Request,
   env: EdgePodEnv,
-  options?: DataLocationOptions
+  options?: DataLocationOptions,
 ) => {
   const url = new URL(request.url);
 
@@ -60,7 +60,7 @@ export const edgePodFetch = async (
   const doId = namespace.idFromName("global-edgepod-instance");
   const stub = env.EDGEPOD_DO.get(
     doId,
-    options?.locationHint ? { locationHint: options.locationHint } : undefined
+    options?.locationHint ? { locationHint: options.locationHint } : undefined,
   ) as unknown as EdgePodStub;
 
   // Durable Object RPC call
@@ -86,7 +86,7 @@ export const edgePodFetch = async (
     } catch {
       return Response.json(
         { success: false, error: "Invalid request body." },
-        { status: 400, headers: serverHeader }
+        { status: 400, headers: serverHeader },
       );
     }
 
@@ -105,10 +105,10 @@ export const edgePodFetch = async (
         {
           success: true,
           data,
-          _meta: hashMetaTableNames(meta),
+          _meta: hashMetaTableNames(meta.read),
           ...(warnings.length > 0 ? { warnings } : {}),
         },
-        { headers: serverHeader }
+        { headers: serverHeader },
       );
     } catch (error) {
       const message = (error as Error).message;
