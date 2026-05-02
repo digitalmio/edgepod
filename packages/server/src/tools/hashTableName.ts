@@ -10,6 +10,7 @@ function hashTableName(str: string): string {
 export const hashMetaTableNames = (
   data: { changed: string[]; read: string[] } = { changed: [], read: [] }
 ) => ({
-  read: data.read.map(hashTableName),
-  changed: data.changed.map(hashTableName),
+  // we'll return read tables only, client don't need to know which tables were changed:
+  //  he'll get this info via websocket invalidation messages
+  t: data.read.map(hashTableName),
 });
