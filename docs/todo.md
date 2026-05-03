@@ -190,11 +190,12 @@ This file tracks active work, upcoming features, and known technical debt. Items
 
 ## Known Issues & Technical Debt
 
-`[ ]` **React Version Mismatch**
+`[x]` **React Version Compatibility**
 
-- `react-dom@19.2.5` installed in root but `react@18.3.1` in `packages/client`
-- `@testing-library/react` resolves peer dep to React 19 but client uses React 18
-- Should pin `react-dom@18.3.1` in root or upgrade client to React 19
+- Client peerDependencies: `"react": "^18.0.0 || ^19.0.0"` — explicitly supports both
+- `@edgepod/client` is a library; React is a peerDependency, not bundled
+- Dev tests run against React 18.3.1; React 19 compatibility assumed via `useSyncExternalStore` stability
+- CI matrix testing (React 18 + 19) tracked separately
 
 `[ ]` **Drizzle Types in Frontend Type Graph**
 

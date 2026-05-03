@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-client:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        react-version: [18, 19]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Override React version (matrix)
+        if: matrix.react-version == 19
+        run: |
+          # Force React 19 in the client package for this CI run.
+          # We use --save-peer so pnpm updates the lockfile in-place.
+          pnpm add --filter @edgepod/client react@^19 @types/react@^19 --save-peer
+
+      - name: Run tests
+        run: pnpm --filter @edgepod/client exec vitest run
+
+      - name: Type check
+        run: pnpm --filter @edgepod/client exec tsc --noEmit
