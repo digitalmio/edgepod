@@ -41,7 +41,7 @@ This file tracks active work, upcoming features, and known technical debt. Items
 - [ ] **Optimistic updates** — pass `optimisticData` option that SWR applies before mutation resolves
 - [ ] Typed error states (currently `any`)
 
-`[-]` **Nanostores Registry (`store.ts`)**
+`[x]` **Nanostores Registry (`store/registry.ts`)**
 
 - [x] Bidirectional map: `Map<hashedTableName, Set<serializedSWRKey>>`
 - [x] `registerQuery` / `deregisterQuery` / `invalidateTables`
@@ -110,12 +110,12 @@ This file tracks active work, upcoming features, and known technical debt. Items
 
 `[-]` **Client Tests**
 
-- [x] `rpcFetcher` — headers, body, happy path, errors, missing `_meta.t`
-- [x] `store` registry — register, deregister, invalidate, deduplication, cleanup
-- [x] `useQuery` — skip on null args, register tables, deregister on unmount, key format
-- [x] `useMutation` — immediate invalidation, empty `_meta.t`, return shape
-- [ ] `socket.ts` — connection, reconnection, message parsing
-- [ ] `provider.tsx` — context value, WS lifecycle
+- [x] `rpc/fetcher.ts` — headers, body, happy path, errors, missing `_meta.t`
+- [x] `store/registry.ts` — register, deregister, invalidate, deduplication, cleanup
+- [x] `hooks/useQuery.ts` — skip on null args, register tables, deregister on unmount, key format
+- [x] `hooks/useMutation.ts` — immediate invalidation, empty `_meta.t`, return shape
+- [x] `socket/socket.ts` — connection, status tracking, message parsing, cleanup
+- [x] `provider/provider.tsx` — context value, WS lifecycle, `wsStatus` sync
 
 `[ ]` **Server Tests**
 
@@ -202,11 +202,12 @@ This file tracks active work, upcoming features, and known technical debt. Items
 - This pulls `drizzle-orm/sqlite-core` types into frontend compilation
 - Not harmful but slows type-checking; fully resolved by generated `client.gen.ts`
 
-`[ ]` **WebSocket Cost Transparency**
+`[x]` **WebSocket Cost Transparency**
 
-- Every active client keeps a WS open, preventing DO hibernation
-- With N concurrent users, you pay for N active DO hours
-- Need documentation explaining this tradeoff vs. polling
+- Uses `acceptWebSocket` hibernation API — idle DOs sleep even with open connections
+- Only billed for actual execution time (ms per message), not wall-clock active hours
+- Free tier: ~3M req/mo + ~390K GB-s; paid: 1M req + 400K GB-s included, then $0.15/M req + $12.50/M GB-s
+- Outgoing WS messages and protocol pings are free; incoming billed at 20:1 ratio
 
 `[ ]` **DO Hibernation + `migrate()`**
 
@@ -224,7 +225,7 @@ This file tracks active work, upcoming features, and known technical debt. Items
 
 ## Done (Completed Since Last Review)
 
-- [x] Client-side mutation invalidation (Option C) — `useMutation` calls `invalidateTables` on success
+- [x] Client-side mutation invalidation (Option C) — `hooks/useMutation.ts` calls `invalidateTables` on success
 - [x] Server broadcasts WS invalidations to **all** sessions (sender included) as safety net
 - [x] Vitest + React Testing Library test suite for client package (19 tests)
 - [x] `resetRegistry()` for test isolation

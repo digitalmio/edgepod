@@ -30,6 +30,11 @@ export class BaseEdgePodEngine extends DurableObject {
 
     this.rawDb = drizzle(ctx.storage, { logger: true });
 
+    // Handle application-level ping/keepalive messages without waking the DO from hibernation.
+    // Protocol-level WebSocket ping frames (RFC 6455) are handled by the runtime automatically
+    // and do not interrupt hibernation. This covers application-level pings (e.g. from PartySocket).
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+
     // The Boot Sequence, aka run on every cold start (initialization or after hibernation)
     // Not awaited — blockConcurrencyWhile owns the promise internally.
     // Any throw inside will terminate the DO before accepting requests.
@@ -76,6 +81,13 @@ export class BaseEdgePodEngine extends DurableObject {
     }
 
     return new Response("Not found", { status: 404 });
+  }
+
+  // EdgePod WebSockets are one-directional (server → client invalidations).
+  // Incoming messages are not expected; application-level pings are handled
+  // by setWebSocketAutoResponse so they do not wake the DO from hibernation.
+  override webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer) {
+    // No-op: client should not send messages on this channel.
   }
 
   // Handle WebSocket disconnects to prevent memory leaks
