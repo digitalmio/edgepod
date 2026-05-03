@@ -39,7 +39,7 @@ jobs:
           pnpm add --filter @edgepod/client react@^19 @types/react@^19 --save-peer
 
       - name: Run tests
-        run: pnpm --filter @edgepod/client exec vitest run
+        run: pnpm exec vitest run
 
       - name: Type check
         run: pnpm --filter @edgepod/client exec tsc --noEmit
