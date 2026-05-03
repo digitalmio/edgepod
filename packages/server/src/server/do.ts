@@ -155,7 +155,7 @@ export class BaseEdgePodEngine extends DurableObject {
 
     if (tablesWritten.size > 0) {
       const hashedTableNames = hashMetaTableNames(Array.from(tablesWritten));
-      this.broadcastInvalidations(hashedTableNames, sessionId);
+      this.broadcastInvalidations(hashedTableNames);
     }
 
     return {
@@ -180,12 +180,10 @@ export class BaseEdgePodEngine extends DurableObject {
     }
   }
 
-  private broadcastInvalidations(tables: string[], excludeSessionId?: string) {
+  private broadcastInvalidations(tables: string[]) {
     const payload = JSON.stringify({ action: "invalidate", tables });
 
     for (const [sessionId, session] of this.activeSessions.entries()) {
-      if (excludeSessionId && sessionId === excludeSessionId) continue;
-
       const isListening = tables.some((t) => session.listeningToTables.has(t));
 
       if (isListening) {
