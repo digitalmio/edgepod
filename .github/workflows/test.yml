@@ -28,15 +28,26 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install dependencies
+      - name: Install dependencies (React 18)
+        if: matrix.react-version == 18
         run: pnpm install --frozen-lockfile
 
-      - name: Override React version (matrix)
+      - name: Force React 19 via pnpm.overrides
         if: matrix.react-version == 19
         run: |
-          # Force React 19 across the monorepo for this CI run.
-          # react-dom must match react or @testing-library/react crashes.
-          pnpm add --save-dev react@^19 react-dom@^19 @types/react@^19
+          # pnpm.overrides forces a single React version across the entire monorepo,
+          # preventing duplicate React copies (which cause "Invalid hook call" crashes).
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.pnpm = pkg.pnpm || {};
+            pkg.pnpm.overrides = pkg.pnpm.overrides || {};
+            pkg.pnpm.overrides.react = "^19.0.0";
+            pkg.pnpm.overrides["react-dom"] = "^19.0.0";
+            pkg.pnpm.overrides["@types/react"] = "^19.0.0";
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          '
+          pnpm install --no-frozen-lockfile
 
       - name: Run tests
         run: pnpm exec vitest run
