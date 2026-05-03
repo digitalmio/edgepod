@@ -5,3 +5,4 @@ export type { EdgePodContextValue } from "./provider/context";
 export { useQuery } from "./hooks/useQuery";
 export { useMutation } from "./hooks/useMutation";
 export { $wsStatus } from "./socket/socket";
+export { createEdgePodClient } from "./client";

@@ -133,20 +133,21 @@ This file tracks active work, upcoming features, and known technical debt. Items
 
 ## v1.1 — Typed Client Generation
 
-`[ ]` **CLI Type Extraction**
+`[x]` **Typed Hook Factory (v1.0)**
 
+- [x] `createEdgePodClient<T>()` returns `useQuery` / `useMutation` with full type inference
+- [x] Usage: `const { useQuery } = createEdgePodClient<typeof Functions>()` — monorepo `import type` shortcut
+- [x] `useQuery("getUsers")` infers zero args and `User[]` return
+- [x] `useMutation("createUser")` infers `{ email: string }` args
+
+`[ ]` **CLI Type Extraction (v1.1 — deferred)**
+
+- See `docs/type-extractor-spec.md` for full design spec & implementation guide
 - [ ] `edgepod generate-client-types [--watch]` command
 - [ ] Parse `edgepod/functions/index.ts` with TypeScript compiler API
 - [ ] Extract: function name, argument type (skipping `ctx`), return type (unwrapping `Promise`)
 - [ ] Recursively inline all types — objects, unions, arrays, primitives — no Drizzle/schema imports
 - [ ] Emit `edgepod/client.gen.ts` with `EdgePodRouter` type
-
-`[ ]` **Typed Hook Factory**
-
-- [ ] `createEdgePodClient<EdgePodRouter>()` returns `useQuery` / `useMutation` with full type inference
-- [ ] Usage: `const { useQuery } = createEdgePodClient<typeof EdgePodRouter>()`
-- [ ] `useQuery('getUsers')` infers zero args and `User[]` return
-- [ ] `useMutation('createUser')` infers `{ email: string }` args
 
 `[ ]` **Watch Mode**
 
@@ -180,11 +181,12 @@ This file tracks active work, upcoming features, and known technical debt. Items
 - [ ] DO storage snapshots for read-heavy workloads
 - [ ] Or hybrid tiering: hot data in DO SQLite, cold data in D1
 
-`[ ]` **Real-Time Collaboration**
+`[ ]` **Real-Time Collaboration (v2.0 — out of scope for reactive queries)**
 
-- [ ] Broadcast mutation events (not just invalidation pings) to all connected clients
-- [ ] Enable live cursors, live lists, etc.
-- [ ] Would require different WS message types and client handling
+- Broadcast actual mutation payloads (not just invalidation pings) to all connected clients
+- Enables live cursors, live lists, optimistic multi-user sync without refetching
+- Requires new WS message types (`{ action: "patch", table, rowId, delta }`) and client-side patch application
+- Current invalidation-only design is correct for v1.0; clients refetch via SWR after receiving `invalidate` pings
 
 ---
 
