@@ -7,3 +7,4 @@ dist
 *.gen.tsx
 *.gen.d.ts
 .edgepod
+*.tsbuildinfo

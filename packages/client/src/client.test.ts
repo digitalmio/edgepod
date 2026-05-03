@@ -72,7 +72,8 @@ describe("createEdgePodClient", () => {
     renderHook(() => useQuery("getUsers"));
 
     expect(mockedUseSWR).toHaveBeenCalledTimes(1);
-    const [key] = mockedUseSWR.mock.calls[0];
+    const firstCall = mockedUseSWR.mock.calls[0]!;
+    const [key] = firstCall;
     expect(key).toEqual(["edgepod", "getUsers", undefined]);
   });
 
@@ -90,8 +91,9 @@ describe("createEdgePodClient", () => {
     renderHook(() => useQuery("getUserById", { id: 42 }));
 
     expect(mockedUseSWR).toHaveBeenCalledTimes(1);
-    const [key] = mockedUseSWR.mock.calls[0];
-    expect(key).toEqual(["edgepod", "getUserById", { id: 42 }]);
+    const firstCall2 = mockedUseSWR.mock.calls[0]!;
+    const [key2] = firstCall2;
+    expect(key2).toEqual(["edgepod", "getUserById", { id: 42 }]);
   });
 
   it("useQuery supports null args for conditional fetching", () => {
@@ -108,8 +110,9 @@ describe("createEdgePodClient", () => {
     renderHook(() => useQuery("getUserById", null));
 
     expect(mockedUseSWR).toHaveBeenCalledTimes(1);
-    const [key] = mockedUseSWR.mock.calls[0];
-    expect(key).toBeNull();
+    const firstCall3 = mockedUseSWR.mock.calls[0]!;
+    const [key3] = firstCall3;
+    expect(key3).toBeNull();
   });
 
   it("useMutation calls underlying SWR mutation with correct function name", () => {
@@ -126,8 +129,9 @@ describe("createEdgePodClient", () => {
     renderHook(() => useMutation("createUser"));
 
     expect(mockedUseSWRMutation).toHaveBeenCalledTimes(1);
-    const [key] = mockedUseSWRMutation.mock.calls[0];
-    expect(key).toBe("createUser");
+    const firstCall4 = mockedUseSWRMutation.mock.calls[0]!;
+    const [key4] = firstCall4;
+    expect(key4).toBe("createUser");
   });
 
   it("useMutation trigger accepts typed args", async () => {

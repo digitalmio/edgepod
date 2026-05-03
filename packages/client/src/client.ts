@@ -17,10 +17,17 @@ export function createEdgePodClient<T extends Record<string, (...args: any[]) =>
       args?: InferRouter<T>[K]["args"] | null,
       config?: SWRConfiguration,
     ) {
-      return useQueryHook<InferRouter<T>[K]["returns"]>(functionName, args, config);
+      return useQueryHook<InferRouter<T>[K]["returns"]>(
+        functionName,
+        args as Record<string, unknown> | null | undefined,
+        config,
+      );
     },
 
-    useMutation<K extends keyof T & string>(functionName: K, config?: SWRMutationConfiguration) {
+    useMutation<K extends keyof T & string>(
+      functionName: K,
+      config?: SWRMutationConfiguration<InferRouter<T>[K]["returns"], Error>,
+    ) {
       return useMutationHook<InferRouter<T>[K]["returns"], InferRouter<T>[K]["args"]>(
         functionName,
         config,
