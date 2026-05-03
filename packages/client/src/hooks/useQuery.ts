@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
 import useSWR, { type SWRConfiguration } from "swr";
-import { useEdgePod } from "./context";
-import { rpcFetcher } from "./rpc";
-import { registerQuery, deregisterQuery } from "./store";
+import { useEdgePod } from "../provider/context";
+import { rpcFetcher } from "../rpc/fetcher";
+import { registerQuery, deregisterQuery } from "../store/registry";
 
 export function useQuery<T>(
   functionName: string,

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { rpcFetcher } from "./rpc";
+import { rpcFetcher } from "./fetcher";
 
 describe("rpcFetcher", () => {
   const ctx = {
     url: "https://api.edgepod.dev",
     apiKey: "test-key",
     sessionId: "test-session",
+    wsStatus: "connected" as const,
   };
 
   beforeEach(() => {

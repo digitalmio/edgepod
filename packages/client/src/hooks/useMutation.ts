@@ -1,7 +1,7 @@
 import useSWRMutation from "swr/mutation";
-import { useEdgePod } from "./context";
-import { rpcFetcher } from "./rpc";
-import { invalidateTables } from "./store";
+import { useEdgePod } from "../provider/context";
+import { rpcFetcher } from "../rpc/fetcher";
+import { invalidateTables } from "../store/registry";
 
 export function useMutation<T>(
   functionName: string,

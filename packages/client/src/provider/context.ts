@@ -4,6 +4,7 @@ export type EdgePodContextValue = {
   url: string;
   apiKey: string;
   sessionId: string;
+  wsStatus: "connected" | "disconnected";
 };
 
 export const EdgePodContext = createContext<EdgePodContextValue | null>(null);

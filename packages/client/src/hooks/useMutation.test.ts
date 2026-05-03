@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import useSWRMutation from "swr/mutation";
 import { useMutation } from "./useMutation";
-import { invalidateTables } from "./store";
+import { invalidateTables } from "../store/registry";
 
-vi.mock("./context", () => ({
+vi.mock("../provider/context", () => ({
   useEdgePod: () => ({ url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" }),
 }));
 
-vi.mock("./rpc", () => ({
+vi.mock("../rpc/fetcher", () => ({
   rpcFetcher: vi.fn(),
 }));
 
-vi.mock("./store", () => ({
+vi.mock("../store/registry", () => ({
   invalidateTables: vi.fn(),
 }));
 
@@ -24,7 +24,7 @@ vi.mock("swr/mutation", () => ({
 const mockedUseSWRMutation = vi.fn();
 const mockedRpcFetcher = vi.fn();
 
-import { rpcFetcher } from "./rpc";
+import { rpcFetcher } from "../rpc/fetcher";
 
 beforeEach(() => {
   vi.mocked(rpcFetcher).mockImplementation(mockedRpcFetcher);
@@ -37,7 +37,12 @@ describe("useMutation", () => {
     const triggerFn = vi.fn(async () => {
       // Simulate the mutation function that gets called internally
       const { data: rpcData, _meta } = await rpcFetcher(
-        { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" },
+        {
+          url: "https://api.edgepod.dev",
+          apiKey: "key",
+          sessionId: "sid",
+          wsStatus: "connected" as const,
+        },
         "createUser",
         { email: "a@b.com" },
       );
@@ -71,7 +76,12 @@ describe("useMutation", () => {
   it("does not call invalidateTables when _meta.t is empty", async () => {
     const triggerFn = vi.fn(async () => {
       const { data: rpcData, _meta } = await rpcFetcher(
-        { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" },
+        {
+          url: "https://api.edgepod.dev",
+          apiKey: "key",
+          sessionId: "sid",
+          wsStatus: "connected" as const,
+        },
         "ping",
         {},
       );

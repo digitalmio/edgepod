@@ -14,12 +14,12 @@ This file tracks active work, upcoming features, and known technical debt. Items
 
 ### Client (`@edgepod/client`)
 
-`[-]` **WebSocket Resilience**
+`[x]` **WebSocket Resilience**
 
-- [ ] Add `onclose` handler with exponential backoff reconnect
-- [ ] Heartbeat/ping to detect dead connections
-- [ ] Surface WS connection status to hooks (e.g., `isConnected` flag)
-- [ ] Graceful degradation: queries still work via HTTP when WS is down, but reactivity pauses
+- [x] Surface WS connection status via `$wsStatus` nanostores atom (`'connected' | 'disconnected'`)
+- [x] Expose `wsStatus` in `EdgePodContextValue` via `useSyncExternalStore`
+- [x] Listen for `open`/`close`/`error` events on `PartySocket`
+- [x] Graceful degradation: queries still work via HTTP when WS is down, but reactivity pauses (by design — PartySocket auto-reconnects)
 
 `[x]` **HTTP RPC Caller**
 
@@ -48,10 +48,10 @@ This file tracks active work, upcoming features, and known technical debt. Items
 - [x] Deduplicates `mutate()` calls when a key is registered for multiple invalidated tables
 - [x] `resetRegistry()` helper for test isolation
 
-`[ ]` **Debug / DevTools**
+`[x]` **Debug / DevTools**
 
+- [x] `wsStatus` exposed in `useEdgePod()` — can be used for connection banners
 - [ ] `useEdgePodDebug()` hook returning:
-  - WS connection status (connected / disconnected / reconnecting)
   - Active subscription count
   - Pending mutations count
 - [ ] Log subscription changes in development mode

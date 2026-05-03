@@ -1,4 +1,4 @@
-import type { EdgePodContextValue } from "./context";
+import type { EdgePodContextValue } from "../provider/context";
 
 type RpcSuccess<T> = {
   success: true;

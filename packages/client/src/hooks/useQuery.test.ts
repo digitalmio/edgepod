@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import useSWR from "swr";
 import { useQuery } from "./useQuery";
-import { registerQuery, deregisterQuery } from "./store";
+import { registerQuery, deregisterQuery } from "../store/registry";
 
-vi.mock("./context", () => ({
+vi.mock("../provider/context", () => ({
   useEdgePod: () => ({ url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" }),
 }));
 
-vi.mock("./rpc", () => ({
+vi.mock("../rpc/fetcher", () => ({
   rpcFetcher: vi.fn(),
 }));
 
-vi.mock("./store", () => ({
+vi.mock("../store/registry", () => ({
   registerQuery: vi.fn(),
   deregisterQuery: vi.fn(),
 }));
@@ -26,7 +26,7 @@ const mockedRpcFetcher = vi.fn();
 const mockedUseSWR = vi.fn();
 
 // Replace the auto-mocked modules with our manual mocks
-import { rpcFetcher } from "./rpc";
+import { rpcFetcher } from "../rpc/fetcher";
 
 beforeEach(() => {
   vi.mocked(rpcFetcher).mockImplementation(mockedRpcFetcher);

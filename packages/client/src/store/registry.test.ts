@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { registerQuery, deregisterQuery, invalidateTables, resetRegistry } from "./store";
+import { registerQuery, deregisterQuery, invalidateTables, resetRegistry } from "./registry";
 
 vi.mock("swr", () => ({
   mutate: vi.fn(),
