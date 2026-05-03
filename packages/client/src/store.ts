@@ -3,6 +3,10 @@ import { mutate } from "swr";
 
 const $registry = atom<Map<string, Set<string>>>(new Map());
 
+export function resetRegistry(): void {
+  $registry.set(new Map());
+}
+
 export function registerQuery(tables: string[], swrKey: unknown[]): void {
   const serializedKey = JSON.stringify(swrKey);
   const current = $registry.get();
