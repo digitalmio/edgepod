@@ -34,9 +34,9 @@ jobs:
       - name: Override React version (matrix)
         if: matrix.react-version == 19
         run: |
-          # Force React 19 in the client package for this CI run.
-          # We use --save-peer so pnpm updates the lockfile in-place.
-          pnpm add --filter @edgepod/client react@^19 @types/react@^19 --save-peer
+          # Force React 19 across the monorepo for this CI run.
+          # react-dom must match react or @testing-library/react crashes.
+          pnpm add --save-dev react@^19 react-dom@^19 @types/react@^19
 
       - name: Run tests
         run: pnpm exec vitest run
