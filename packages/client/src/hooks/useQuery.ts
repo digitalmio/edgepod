@@ -1,16 +1,20 @@
 import { useEffect, useMemo } from "react";
 import useSWR, { type SWRConfiguration } from "swr";
-import { useEdgePod } from "../provider/context";
 import { rpcFetcher } from "../rpc/fetcher";
 import { registerQuery, deregisterQuery } from "../store/registry";
 
+type RpcCtx = {
+  url: string;
+  apiKey: string;
+  sessionId: string;
+};
+
 export function useQuery<T>(
+  ctx: RpcCtx,
   functionName: string,
   args?: Record<string, unknown> | null,
   config?: SWRConfiguration,
 ) {
-  const ctx = useEdgePod();
-
   const key = useMemo(
     () => (args === null ? null : (["edgepod", functionName, args] as unknown[])),
     [functionName, args],

@@ -4,14 +4,6 @@ import useSWRMutation from "swr/mutation";
 import useSWR from "swr";
 import { createEdgePodClient } from "./client";
 
-vi.mock("./provider/context", () => ({
-  useEdgePod: () => ({
-    url: "https://api.edgepod.dev",
-    apiKey: "key",
-    sessionId: "sid",
-  }),
-}));
-
 vi.mock("./rpc/fetcher", () => ({
   rpcFetcher: vi.fn(),
 }));
@@ -36,6 +28,8 @@ beforeEach(() => {
 });
 
 describe("createEdgePodClient", () => {
+  const clientConfig = { url: "https://api.edgepod.dev", apiKey: "key" };
+
   // Mock function signatures that simulate a real backend router
   const mockFunctions = {
     getUsers: async (_ctx: any) => [{ id: 1, name: "Alice" }],
@@ -52,7 +46,7 @@ describe("createEdgePodClient", () => {
   };
 
   it("returns useQuery and useMutation hooks", () => {
-    const { useQuery, useMutation } = createEdgePodClient<typeof mockFunctions>();
+    const { useQuery, useMutation } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     expect(typeof useQuery).toBe("function");
     expect(typeof useMutation).toBe("function");
@@ -67,7 +61,7 @@ describe("createEdgePodClient", () => {
       mutate: vi.fn(),
     });
 
-    const { useQuery } = createEdgePodClient<typeof mockFunctions>();
+    const { useQuery } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     renderHook(() => useQuery("getUsers"));
 
@@ -86,7 +80,7 @@ describe("createEdgePodClient", () => {
       mutate: vi.fn(),
     });
 
-    const { useQuery } = createEdgePodClient<typeof mockFunctions>();
+    const { useQuery } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     renderHook(() => useQuery("getUserById", { id: 42 }));
 
@@ -105,7 +99,7 @@ describe("createEdgePodClient", () => {
       mutate: vi.fn(),
     });
 
-    const { useQuery } = createEdgePodClient<typeof mockFunctions>();
+    const { useQuery } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     renderHook(() => useQuery("getUserById", null));
 
@@ -124,7 +118,7 @@ describe("createEdgePodClient", () => {
       isMutating: false,
     });
 
-    const { useMutation } = createEdgePodClient<typeof mockFunctions>();
+    const { useMutation } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     renderHook(() => useMutation("createUser"));
 
@@ -147,7 +141,7 @@ describe("createEdgePodClient", () => {
       isMutating: false,
     });
 
-    const { useMutation } = createEdgePodClient<typeof mockFunctions>();
+    const { useMutation } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
     const { result } = renderHook(() => useMutation("createUser"));
 
@@ -160,13 +154,10 @@ describe("createEdgePodClient", () => {
   });
 
   it("functionName is constrained to keys of the router", () => {
-    const { useQuery } = createEdgePodClient<typeof mockFunctions>();
+    const { useQuery } = createEdgePodClient<typeof mockFunctions>(clientConfig);
 
-    // These should compile (verified by TypeScript, not runtime)
     expect(typeof useQuery).toBe("function");
 
-    // Type-level: "getUsers" and "getUserById" are valid, "unknown" is not.
-    // We verify this indirectly by checking the factory works with known keys.
     expect(() => {
       renderHook(() => useQuery("getUsers"));
     }).not.toThrow();

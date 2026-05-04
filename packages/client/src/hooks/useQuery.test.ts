@@ -4,10 +4,6 @@ import useSWR from "swr";
 import { useQuery } from "./useQuery";
 import { registerQuery, deregisterQuery } from "../store/registry";
 
-vi.mock("../provider/context", () => ({
-  useEdgePod: () => ({ url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" }),
-}));
-
 vi.mock("../rpc/fetcher", () => ({
   rpcFetcher: vi.fn(),
 }));
@@ -28,6 +24,8 @@ const mockedUseSWR = vi.fn();
 // Replace the auto-mocked modules with our manual mocks
 import { rpcFetcher } from "../rpc/fetcher";
 
+const mockCtx = { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" };
+
 beforeEach(() => {
   vi.mocked(rpcFetcher).mockImplementation(mockedRpcFetcher);
   (useSWR as any).mockImplementation(mockedUseSWR);
@@ -45,7 +43,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { result } = renderHook(() => useQuery("getUsers", null));
+    const { result } = renderHook(() => useQuery(mockCtx, "getUsers", null));
 
     expect(mockedUseSWR).toHaveBeenCalledWith(null, null, undefined);
     expect(result.current.data).toBeUndefined();
@@ -66,7 +64,7 @@ describe("useQuery", () => {
       mutate: mutateFn,
     });
 
-    renderHook(() => useQuery("getUsers", {}));
+    renderHook(() => useQuery(mockCtx, "getUsers", {}));
 
     // Wait for useEffect to run
     await waitFor(() => {
@@ -88,7 +86,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { unmount } = renderHook(() => useQuery("getUsers", {}));
+    const { unmount } = renderHook(() => useQuery(mockCtx, "getUsers", {}));
 
     await waitFor(() => {
       expect(registerQuery).toHaveBeenCalled();
@@ -110,7 +108,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    renderHook(() => useQuery("getUsers", { limit: 10 }));
+    renderHook(() => useQuery(mockCtx, "getUsers", { limit: 10 }));
 
     const matchingCall = mockedUseSWR.mock.calls.find(
       ([key]) =>

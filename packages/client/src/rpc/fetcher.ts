@@ -1,4 +1,8 @@
-import type { EdgePodContextValue } from "../provider/context";
+type RpcCtx = {
+  url: string;
+  apiKey: string;
+  sessionId: string;
+};
 
 type RpcSuccess<T> = {
   success: true;
@@ -15,7 +19,7 @@ type RpcError = {
 type RpcResponse<T> = RpcSuccess<T> | RpcError;
 
 export async function rpcFetcher<T>(
-  ctx: EdgePodContextValue,
+  ctx: RpcCtx,
   functionName: string,
   args?: Record<string, unknown>,
 ): Promise<{ data: T; _meta: { t: string[] } }> {

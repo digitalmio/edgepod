@@ -34,7 +34,7 @@ export const initCommand = async () => {
   const envVars: Record<string, string> = { EDGEPOD_API_KEY: apiKey };
 
   try {
-    await createFiles(rootPath, dataLocation);
+    await createFiles(rootPath, { ...dataLocation, apiKey });
     await updateGitignore(rootPath);
     await addScriptsToPackageJson(rootPath);
     await generateWranglerFromTemplate(rootPath, {

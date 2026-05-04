@@ -1,15 +1,19 @@
 import useSWRMutation from "swr/mutation";
-import { useEdgePod } from "../provider/context";
 import { rpcFetcher } from "../rpc/fetcher";
 import { invalidateTables } from "../store/registry";
 
+type RpcCtx = {
+  url: string;
+  apiKey: string;
+  sessionId: string;
+};
+
 export function useMutation<T, A = any>(
+  ctx: RpcCtx,
   functionName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config?: any,
 ) {
-  const ctx = useEdgePod();
-
   const { trigger, data, error, isMutating } = useSWRMutation(
     functionName,
     async (_, { arg }: { arg?: A }) => {

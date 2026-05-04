@@ -4,15 +4,19 @@
 
 ### `@edgepod/client` Package
 
-#### 1. `EdgePodProvider`
+#### 1. `createEdgePodClient<Router>(config)`
 
-React context provider that:
+The single entry point for the client. It:
 
+- Captures `url` and `apiKey` from the config object
 - Generates a `sessionId` via `crypto.randomUUID()`
-- Establishes a `PartySocket` WebSocket connection
+- Establishes a `PartySocket` WebSocket connection immediately
 - Wires WebSocket invalidation messages (`{ action: "invalidate", tables: [...] }`) to the nanostores registry, which triggers SWR revalidation
+- Returns typed `useQuery` and `useMutation` hooks that automatically pass the captured config to the fetcher
 
-#### 2. `useQuery(functionName, args?, config?)`
+No React provider wrapping is required — the client owns its own config and WebSocket lifecycle.
+
+#### 2. `useQuery(functionName, args?, config?)
 
 SWR-powered query hook:
 
@@ -80,13 +84,12 @@ The server hashes table names before sending them in both HTTP `_meta.t` and Web
 - When a WS message arrives with hashes, we look them up directly
 - No reverse hash function needed
 
-### Mutation Invalidation: Option B (WebSocket Only)
+### Mutation Invalidation: Option C (Immediate Client-Side)
 
-Mutations rely on the server's WebSocket invalidation ping after writes are committed. This is the single source of truth and handles cross-client sync naturally.
+Mutations call `rpcFetcher` and read `_meta.t` from the response. If tables were written to, the client immediately calls `invalidateTables(_meta.t)` to refresh local queries. The server also broadcasts the same invalidation to all other connected clients via WebSocket, so cross-client sync is handled automatically.
 
 **Deferred to v1.1:**
 
-- Option C (immediate client-side invalidation using `_meta.t` from the mutation response)
 - Optimistic updates
 
 ### SWR Key Format: Arrays
@@ -99,40 +102,56 @@ We use `['edgepod', functionName, args]` instead of string concatenation because
 
 ---
 
-## v1.0: Typed Client with `import type` (Monorepo & Same-Repo)
+## v1.0: Typed Client with Generated Client File
 
 ### How It Works
 
-For projects where frontend and backend live in the same repository (monorepo or same folder), TypeScript can infer types directly from the backend functions:
+After running `edgepod init`, a typed client is generated in the `edgepod/` folder:
 
 ```ts
-// frontend/src/api.ts
-import type * as Functions from "../../edgepod/functions/index";
+// edgepod/client.ts — generated
 import { createEdgePodClient } from "@edgepod/client";
+import type { EdgePodRouter } from "./router";
 
-const { useQuery, useMutation } = createEdgePodClient<typeof Functions>();
-
-// Fully typed — function names, args, and return types inferred
-const { data } = useQuery("getUsers");
-//    ^? data: Array<{ id: number; email: string; name: string | null }>
-
-const { trigger } = useMutation("createUser");
-//    ^? trigger: (args: { email: string; name: string }) => Promise<{ ... }>
+export const edgepod = createEdgePodClient<EdgePodRouter>({
+  url: "http://localhost:8989",
+  apiKey: "ep_pk_...",
+});
 ```
 
-### Type Inference
+The `EdgePodRouter` type is derived from `edgepod/functions/index.ts` via `import type *`:
 
-`createEdgePodClient<typeof Functions>()` infers an `EdgePodRouter` from the exported function signatures:
+```ts
+// edgepod/router.ts — generated
+import type * as functions from "./functions/index";
 
-- **Function names** — from object keys (`getUsers`, `createUser`)
-- **Args** — from the second parameter of each function (skipping `ctx`)
-- **Returns** — from `Awaited<ReturnType<fn>>` (unwraps `Promise<>` automatically)
+export type EdgePodRouter = {
+  [K in keyof typeof functions]: {
+    args: Parameters<(typeof functions)[K]> extends [any, infer P] ? P : undefined;
+    returns: Awaited<ReturnType<(typeof functions)[K]>>;
+  };
+};
+```
+
+### Usage in Components
+
+```tsx
+import { edgepod } from "./edgepod/client";
+
+function MyApp() {
+  const { data } = edgepod.useQuery("getUsers");
+  //    ^? data: Array<{ id: number; email: string; name: string | null }>
+
+  const { trigger } = edgepod.useMutation("createUser");
+  //    ^? trigger: (args: { email: string; name: string }) => Promise<{ ... }>
+}
+```
 
 ### Limitations
 
-- Requires `import type` from backend source files — frontend `tsc` resolves the full type graph including Drizzle definitions
+- Works in monorepos where frontend and backend share `node_modules` (TypeScript can resolve backend imports)
 - Does **not** work for separate repositories (frontend cannot import backend files)
-- For separate repos, use the untyped hooks (`useQuery<string>("foo")`) or manually write a router type
+- Frontend `tsc` resolves the full backend type graph including Drizzle definitions — this can slow type-checking as the backend grows
 
 ---
 

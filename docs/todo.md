@@ -115,7 +115,7 @@ This file tracks active work, upcoming features, and known technical debt. Items
 - [x] `hooks/useQuery.ts` — skip on null args, register tables, deregister on unmount, key format
 - [x] `hooks/useMutation.ts` — immediate invalidation, empty `_meta.t`, return shape
 - [x] `socket/socket.ts` — connection, status tracking, message parsing, cleanup
-- [x] `provider/provider.tsx` — context value, WS lifecycle, `wsStatus` sync
+- [x] `client.ts` — `createEdgePodClient(config)` auto-connects WS, returns typed hooks
 
 `[ ]` **Server Tests**
 
