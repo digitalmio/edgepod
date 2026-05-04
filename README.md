@@ -31,7 +31,7 @@ Every EdgePod project is deployed directly to the user's Cloudflare account as a
 
 EdgePod achieves automatic reactivity without requiring developers to manually declare table dependencies:
 
-- **Kysely AST Sniffer:** When a backend RPC function executes a Kysely query, a custom EdgePod plugin intercepts the Abstract Syntax Tree (AST). It extracts the exact tables being read or written to and dynamically registers the active `clientId` to those tables in the DO's memory map.
+- **Drizzle Query Tracker:** When a backend RPC function executes a Drizzle query, EdgePod intercepts the compiled SQL. It extracts the exact tables being read or written to and dynamically registers the active `clientId` to those tables in the DO's memory map.
 - **Automatic Invalidation:** When a mutation modifies a table, the DO looks up all connected clients subscribed to that table and fires the `"stale"` WebSocket message.
 
 ---
@@ -40,18 +40,100 @@ EdgePod achieves automatic reactivity without requiring developers to manually d
 
 ### Backend: Writing RPC Functions
 
-Developers write standard asynchronous JavaScript/TypeScript functions. The framework injects a typed context (`ctx`) containing the Kysely SQLite database instance. There is no complex Row-Level Security (RLS) to manage—the exported function _is_ the security boundary.
+Developers write standard asynchronous JavaScript/TypeScript functions. The framework injects a typed context (`ctx`) containing the Drizzle SQLite database instance. There is no complex Row-Level Security (RLS) to manage — the exported function _is_ the security boundary.
 
 ```typescript
 // edgepod/functions/index.ts
-export const getUsers = async (ctx, args) => {
-  // The Kysely Sniffer automatically subscribes the client to the 'users' table
-  return await ctx.db.selectFrom("users").selectAll().execute();
+import { users } from "../schema";
+
+export const getUsers = async (ctx) => {
+  // Drizzle tracker auto-subscribes the client to the 'users' table
+  return await ctx.db.select().from(users).all();
 };
 
 export const insertUser = async (ctx, args) => {
-  const result = await ctx.db.insertInto("users").values(args).execute();
-  // The DO automatically detects a write to 'users' and pings active WebSockets
+  const result = await ctx.db.insert(users).values(args).returning().all();
+  // The DO auto-detects the write and pings active WebSockets
   return result;
 };
 ```
+
+### Middleware
+
+Wrap functions with reusable middleware using the familiar `(ctx, args, next)` pattern:
+
+```typescript
+import { createMiddleware } from "@edgepod/server";
+
+// Create a middleware that enforces authentication
+const withAuth = createMiddleware(async (ctx, args, next) => {
+  if (!ctx.user) throw new Error("Unauthorized");
+  return next();
+});
+
+// Apply it to any handler — types are preserved
+export const getUsers = withAuth(async (ctx) => {
+  return await ctx.db.select().from(users).all();
+});
+```
+
+Middleware runs before the handler, so it is the perfect place for auth checks, argument validation, or enriching the context. You can compose multiple middlewares by nesting them.
+
+### Authentication
+
+`edgepod init` walks you through three auth strategies:
+
+| Mode            | How it works                                                                                                                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **None**        | No JWT verification. Every request is treated as anonymous.                                                                                                                                                |
+| **Remote JWKS** | Verify tokens from an external provider (Clerk, Auth0, Supabase, etc.). You supply the provider's JWKS URL and EdgePod validates signatures against it.                                                    |
+| **Local JWKS**  | EdgePod generates an ES256 key pair. The public key is served at `/.well-known/jwks.json` and the private signing key lives in `edgepod/.env`. Use the exported `getJwtSigner()` to issue tokens yourself. |
+
+In remote mode, tokens are verified but never issued by EdgePod. In local mode, you are the authority — sign tokens server-side and verify them inside middleware:
+
+```typescript
+const withAuth = createMiddleware(async (ctx, args, next) => {
+  const token = ctx.req.headers.get("authorization")?.replace("Bearer ", "");
+  const payload = token ? await verifyJwt(token, ctx.env) : null;
+  if (!payload) throw new Error("Unauthorized");
+  ctx.user = payload;
+  return next();
+});
+```
+
+### Frontend: Using the Typed Client
+
+No provider wrapping needed — import the generated client and use typed hooks directly:
+
+```tsx
+import { edgepod } from "./edgepod/client";
+
+function Users() {
+  const { data, isLoading, error } = edgepod.useQuery("getUsers");
+  const { trigger, isMutating } = edgepod.useMutation("insertUser");
+
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <div>
+      <ul>
+        {data?.map((u) => (
+          <li key={u.id}>{u.name}</li>
+        ))}
+      </ul>
+      <button disabled={isMutating} onClick={() => trigger({ name: "Ada" })}>
+        Add User
+      </button>
+    </div>
+  );
+}
+```
+
+The client auto-connects a WebSocket on creation. When another user inserts a row, your `useQuery` cache refreshes automatically.
+
+---
+
+## License
+
+Elastic License 2.0
