@@ -10,19 +10,29 @@ pnpm add @edgepod/client
 
 ## Quick start
 
-### 1. Import the generated client
+### 1. Wrap your app with the provider
 
-After running `edgepod init`, a typed client is generated in your `edgepod/` folder:
-
-```ts
-import { edgepod } from "./edgepod/client";
-```
-
-### 2. Use in components
+After running `edgepod init`, import the provider from the generated client file:
 
 ```tsx
+import { EdgePodProvider } from "./edgepod/client";
+
+function App() {
+  return (
+    <EdgePodProvider url="http://localhost:8989" apiKey="ep_pk_...">
+      <MyApp />
+    </EdgePodProvider>
+  );
+}
+```
+
+### 2. Use typed hooks in components
+
+```tsx
+import { useQuery, useMutation, useStatus } from "./edgepod/client";
+
 function Post({ id }: { id: string }) {
-  const { data, error, isLoading } = edgepod.useQuery("getPost", { id });
+  const { data, error, isLoading } = useQuery("getPost", { id });
 
   if (isLoading) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
@@ -30,7 +40,7 @@ function Post({ id }: { id: string }) {
 }
 
 function CreatePost() {
-  const { trigger, isMutating } = edgepod.useMutation("createPost");
+  const { trigger, isMutating } = useMutation("createPost");
 
   return (
     <button disabled={isMutating} onClick={() => trigger({ title: "Hello world" })}>
@@ -38,53 +48,66 @@ function CreatePost() {
     </button>
   );
 }
-```
-
-No provider wrapping needed — the client auto-connects its WebSocket on creation.
-
-## Creating a client manually
-
-If you are not using the CLI-generated client, create one with `createEdgePodClient`:
-
-```ts
-import { createEdgePodClient } from "@edgepod/client";
-import type { EdgePodRouter } from "./edgepod/router";
-
-export const edgepod = createEdgePodClient<EdgePodRouter>({
-  url: "http://localhost:8989",
-  apiKey: "your-api-key",
-});
-```
-
-## API
-
-### `createEdgePodClient<Router>(config)`
-
-| Param    | Type     | Description                      |
-| -------- | -------- | -------------------------------- |
-| `url`    | `string` | Base URL of your EdgePod Worker. |
-| `apiKey` | `string` | API key used for auth.           |
-
-Returns an object with:
-
-- `useQuery(functionName, args?, swrConfig?)` – read query. Uses SWR under the hood.
-- `useMutation(functionName, swrMutationConfig?)` – mutation hook. Returns `{ trigger, data, error, isMutating }`.
-- `status` – current WebSocket status (`"connected" | "disconnected"`).
-
-Pass your server router type (e.g. from `typeof import("./edgepod/functions")`) to get full type-safety for function names, arguments, and return values.
-
-### `useStatus()`
-
-React hook that reads the current WebSocket connection status:
-
-```tsx
-import { useStatus } from "@edgepod/client";
 
 function ConnectionBadge() {
   const status = useStatus();
   return <span>{status}</span>;
 }
 ```
+
+## API
+
+### `EdgePodProvider`
+
+Wrap your app (or a subtree) once:
+
+| Prop     | Type     | Description                      |
+| -------- | -------- | -------------------------------- |
+| `url`    | `string` | Base URL of your EdgePod Worker. |
+| `apiKey` | `string` | API key used for auth.           |
+
+The provider manages the WebSocket lifecycle automatically.
+
+### `useQuery(functionName, args?, options?)`
+
+Read query backed by SWR.
+
+| Param          | Type               | Description                                      |
+| -------------- | ------------------ | ------------------------------------------------ |
+| `functionName` | `string`           | Name of the RPC function to call.                |
+| `args`         | `object` \| `null` | Arguments to pass. Pass `null` to skip fetching. |
+| `options`      | `object`           | See options below.                               |
+
+Returns `{ data, error, isLoading, isValidating, mutate }`.
+
+### `useMutation(functionName, options?)`
+
+Mutation hook.
+
+| Param          | Type     | Description                       |
+| -------------- | -------- | --------------------------------- |
+| `functionName` | `string` | Name of the RPC function to call. |
+| `options`      | `object` | See options below.                |
+
+Returns `{ trigger, data, error, isMutating }`.
+
+### `useStatus()`
+
+React hook that reads the current WebSocket connection status:
+
+```tsx
+const status = useStatus(); // "connected" | "disconnected"
+```
+
+### Query / mutation options
+
+| Option            | Applies to                | Description                                |
+| ----------------- | ------------------------- | ------------------------------------------ |
+| `fallbackData`    | `useQuery`                | Initial data before the first fetch.       |
+| `onSuccess`       | `useQuery`, `useMutation` | Callback fired when the request succeeds.  |
+| `onError`         | `useQuery`, `useMutation` | Callback fired when the request fails.     |
+| `suspense`        | `useQuery`                | Enable React Suspense mode.                |
+| `errorRetryCount` | `useQuery`                | Number of times to retry a failed request. |
 
 ### `$wsStatus`
 

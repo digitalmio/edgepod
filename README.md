@@ -103,20 +103,34 @@ const withAuth = createMiddleware(async (ctx, args, next) => {
 
 ### Frontend: Using the Typed Client
 
-No provider wrapping needed — import the generated client and use typed hooks directly:
+Wrap your app once with the generated provider, then import typed hooks directly:
 
 ```tsx
-import { edgepod } from "./edgepod/client";
+// App.tsx
+import { EdgePodProvider } from "./edgepod/client";
+
+function App() {
+  return (
+    <EdgePodProvider url="http://localhost:8989" apiKey="ep_pk_...">
+      <Users />
+    </EdgePodProvider>
+  );
+}
+
+// Users.tsx
+import { useQuery, useMutation, useStatus } from "./edgepod/client";
 
 function Users() {
-  const { data, isLoading, error } = edgepod.useQuery("getUsers");
-  const { trigger, isMutating } = edgepod.useMutation("insertUser");
+  const { data, isLoading, error } = useQuery("getUsers");
+  const { trigger, isMutating } = useMutation("insertUser");
+  const status = useStatus();
 
   if (isLoading) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
 
   return (
     <div>
+      <p>WebSocket: {status}</p>
       <ul>
         {data?.map((u) => (
           <li key={u.id}>{u.name}</li>
@@ -130,7 +144,7 @@ function Users() {
 }
 ```
 
-The client auto-connects a WebSocket on creation. When another user inserts a row, your `useQuery` cache refreshes automatically.
+The provider manages the WebSocket lifecycle. When another user inserts a row, your `useQuery` cache refreshes automatically via WebSocket invalidation signals.
 
 ---
 

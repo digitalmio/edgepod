@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import useSWR from "swr";
+import { EdgePodProvider } from "../provider/provider";
 import { useQuery } from "./useQuery";
 import { registerQuery, deregisterQuery } from "../store/registry";
 
@@ -21,10 +22,13 @@ vi.mock("swr", () => ({
 const mockedRpcFetcher = vi.fn();
 const mockedUseSWR = vi.fn();
 
-// Replace the auto-mocked modules with our manual mocks
 import { rpcFetcher } from "../rpc/fetcher";
 
-const mockCtx = { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" };
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <EdgePodProvider url="https://api.edgepod.dev" apiKey="key">
+    {children}
+  </EdgePodProvider>
+);
 
 beforeEach(() => {
   vi.mocked(rpcFetcher).mockImplementation(mockedRpcFetcher);
@@ -43,9 +47,9 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { result } = renderHook(() => useQuery(mockCtx, "getUsers", null));
+    const { result } = renderHook(() => useQuery("getUsers", null), { wrapper });
 
-    expect(mockedUseSWR).toHaveBeenCalledWith(null, null, undefined);
+    expect(mockedUseSWR).toHaveBeenCalledWith(null, null, expect.any(Object));
     expect(result.current.data).toBeUndefined();
   });
 
@@ -64,9 +68,8 @@ describe("useQuery", () => {
       mutate: mutateFn,
     });
 
-    renderHook(() => useQuery(mockCtx, "getUsers", {}));
+    renderHook(() => useQuery("getUsers", {}), { wrapper });
 
-    // Wait for useEffect to run
     await waitFor(() => {
       expect(registerQuery).toHaveBeenCalledWith(["a1b2", "c3d4"], ["edgepod", "getUsers", {}]);
     });
@@ -86,7 +89,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { unmount } = renderHook(() => useQuery(mockCtx, "getUsers", {}));
+    const { unmount } = renderHook(() => useQuery("getUsers", {}), { wrapper });
 
     await waitFor(() => {
       expect(registerQuery).toHaveBeenCalled();
@@ -108,7 +111,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    renderHook(() => useQuery(mockCtx, "getUsers", { limit: 10 }));
+    renderHook(() => useQuery("getUsers", { limit: 10 }), { wrapper });
 
     const matchingCall = mockedUseSWR.mock.calls.find(
       ([key]) =>

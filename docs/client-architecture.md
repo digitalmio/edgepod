@@ -4,21 +4,29 @@
 
 ### `@edgepod/client` Package
 
-#### 1. `createEdgePodClient<Router>(config)`
+#### 1. `EdgePodProvider`
 
-The single entry point for the client. It:
+The root component that manages client configuration and WebSocket lifecycle:
 
-- Captures `url` and `apiKey` from the config object
+- Captures `url` and `apiKey` from props
 - Generates a `sessionId` via `crypto.randomUUID()`
-- Establishes a `PartySocket` WebSocket connection immediately
+- Establishes a `PartySocket` WebSocket connection in `useEffect`
 - Wires WebSocket invalidation messages (`{ action: "invalidate", tables: [...] }`) to the nanostores registry, which triggers SWR revalidation
-- Returns typed `useQuery` and `useMutation` hooks that automatically pass the captured config to the fetcher
+- Provides `{ url, apiKey, sessionId, wsStatus }` via React context
 
-No React provider wrapping is required — the client owns its own config and WebSocket lifecycle.
+Wrap your app once:
 
-#### 2. `useQuery(functionName, args?, config?)
+```tsx
+import { EdgePodProvider } from "./edgepod/client";
 
-SWR-powered query hook:
+<EdgePodProvider url="http://localhost:8989" apiKey="ep_pk_...">
+  <App />
+</EdgePodProvider>;
+```
+
+#### 2. `useQuery(functionName, args?, options?)`
+
+SWR-powered query hook. Reads `url`/`apiKey`/`sessionId` from context internally:
 
 - **Key format:** `["edgepod", functionName, args]` (SWR-idiomatic array keys)
 - Calls `rpcFetcher` which POSTs to `/rpc/{functionName}`
@@ -26,16 +34,35 @@ SWR-powered query hook:
 - Cleans up registry entries on unmount / key change via `deregisterQuery(tables, swrKey)`
 - Returns `{ data, error, isLoading, isValidating, mutate }`
 
-#### 3. `useMutation(functionName, config?)`
+Exposed options:
 
-SWR mutation hook:
+| Option            | Description                                |
+| ----------------- | ------------------------------------------ |
+| `fallbackData`    | Initial data before the first fetch.       |
+| `onSuccess`       | Callback fired when the request succeeds.  |
+| `onError`         | Callback fired when the request fails.     |
+| `suspense`        | Enable React Suspense mode.                |
+| `errorRetryCount` | Number of times to retry a failed request. |
+
+#### 3. `useMutation(functionName, options?)`
+
+SWR mutation hook. Also reads context internally:
 
 - Returns `{ trigger, data, error, isMutating }`
 - Calls `rpcFetcher` via `trigger(arg?)`
-- **Currently relies on server WebSocket invalidations (Option B)** — the server detects writes and pings all listening clients
-- **TODO comments** in place for:
-  - Immediate client-side invalidation (Option C) using `_meta.t` from the mutation response
-  - Optimistic updates support
+- **Immediate client-side invalidation** — reads `_meta.t` from the mutation response and calls `invalidateTables(_meta.t)` to refresh local queries
+- The server also broadcasts the same invalidation to all other connected clients via WebSocket
+
+Exposed options:
+
+| Option      | Description                               |
+| ----------- | ----------------------------------------- |
+| `onSuccess` | Callback fired when the request succeeds. |
+| `onError`   | Callback fired when the request fails.    |
+
+**Deferred to v1.1:**
+
+- Optimistic updates
 
 #### 4. `rpcFetcher<T>(ctx, functionName, args?)`
 
@@ -84,7 +111,7 @@ The server hashes table names before sending them in both HTTP `_meta.t` and Web
 - When a WS message arrives with hashes, we look them up directly
 - No reverse hash function needed
 
-### Mutation Invalidation: Option C (Immediate Client-Side)
+### Mutation Invalidation: Immediate Client-Side
 
 Mutations call `rpcFetcher` and read `_meta.t` from the response. If tables were written to, the client immediately calls `invalidateTables(_meta.t)` to refresh local queries. The server also broadcasts the same invalidation to all other connected clients via WebSocket, so cross-client sync is handled automatically.
 
@@ -110,39 +137,48 @@ After running `edgepod init`, a typed client is generated in the `edgepod/` fold
 
 ```ts
 // edgepod/client.ts — generated
-import { createEdgePodClient } from "@edgepod/client";
-import type { EdgePodRouter } from "./router";
+export { EdgePodProvider, useStatus, $wsStatus } from "@edgepod/client";
 
-export const edgepod = createEdgePodClient<EdgePodRouter>({
-  url: "http://localhost:8989",
-  apiKey: "ep_pk_...",
-});
-```
-
-The `EdgePodRouter` type is derived from `edgepod/functions/index.ts` via `import type *`:
-
-```ts
-// edgepod/router.ts — generated
+import { useQuery as baseUseQuery, useMutation as baseUseMutation } from "@edgepod/client";
 import type * as functions from "./functions/index";
 
-export type EdgePodRouter = {
+type Router = {
   [K in keyof typeof functions]: {
     args: Parameters<(typeof functions)[K]> extends [any, infer P] ? P : undefined;
     returns: Awaited<ReturnType<(typeof functions)[K]>>;
   };
 };
+
+export function useQuery<K extends keyof Router & string>(
+  functionName: K,
+  args?: Router[K]["args"] | null,
+  options?: { fallbackData?: Router[K]["returns"]; onSuccess?: (data: Router[K]["returns"]) => void; onError?: (error: Error) => void; suspense?: boolean; errorRetryCount?: number },
+) { ... }
+
+export function useMutation<K extends keyof Router & string>(
+  functionName: K,
+  options?: { onSuccess?: (data: Router[K]["returns"]) => void; onError?: (error: Error) => void },
+) { ... }
 ```
 
 ### Usage in Components
 
 ```tsx
-import { edgepod } from "./edgepod/client";
+import { EdgePodProvider, useQuery, useMutation } from "./edgepod/client";
 
 function MyApp() {
-  const { data } = edgepod.useQuery("getUsers");
+  return (
+    <EdgePodProvider url="http://localhost:8989" apiKey="ep_pk_...">
+      <Users />
+    </EdgePodProvider>
+  );
+}
+
+function Users() {
+  const { data } = useQuery("getUsers");
   //    ^? data: Array<{ id: number; email: string; name: string | null }>
 
-  const { trigger } = edgepod.useMutation("createUser");
+  const { trigger } = useMutation("createUser");
   //    ^? trigger: (args: { email: string; name: string }) => Promise<{ ... }>
 }
 ```
@@ -194,10 +230,10 @@ export type EdgePodRouter = {
 ### Frontend Usage (v1.1)
 
 ```ts
+import { EdgePodProvider, useQuery, useMutation } from "@edgepod/client";
 import type { EdgePodRouter } from "./edgepod/client.gen";
-import { createEdgePodClient } from "@edgepod/client";
 
-const { useQuery, useMutation } = createEdgePodClient<EdgePodRouter>();
+// Hooks would accept a generic or the types would be wired another way
 ```
 
 ---
@@ -206,7 +242,7 @@ const { useQuery, useMutation } = createEdgePodClient<EdgePodRouter>();
 
 1. **Docs generation:** Should the CLI emit a README in the `edgepod/` folder explaining `client.gen.ts` usage?
 
-2. **Typed vs untyped hooks:** Both coexist. `createEdgePodClient<Router>()` is recommended for production. Untyped `useQuery`/`useMutation` remain available for quick scripts and prototyping.
+2. **Typed vs untyped hooks:** Untyped `useQuery`/`useMutation` remain available from `@edgepod/client` for quick scripts and prototyping. The generated `edgepod/client.ts` is recommended for production.
 
 3. **TypeScript compiler API vs ts-morph:** The built-in compiler API is sufficient for flat function extraction. If we later need more advanced AST manipulation (e.g., JSDoc parsing, middleware unwrapping), we may upgrade to `ts-morph`.
 

@@ -1,23 +1,38 @@
 import { useEffect, useMemo } from "react";
-import useSWR, { type SWRConfiguration } from "swr";
+import useSWR from "swr";
 import { rpcFetcher } from "../rpc/fetcher";
 import { registerQuery, deregisterQuery } from "../store/registry";
+import { useEdgePod } from "../provider/provider";
 
-type RpcCtx = {
-  url: string;
-  apiKey: string;
-  sessionId: string;
+export type UseQueryOptions<T> = {
+  fallbackData?: T;
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+  suspense?: boolean;
+  errorRetryCount?: number;
 };
 
 export function useQuery<T>(
-  ctx: RpcCtx,
   functionName: string,
   args?: Record<string, unknown> | null,
-  config?: SWRConfiguration,
+  options?: UseQueryOptions<T>,
 ) {
+  const ctx = useEdgePod();
+
   const key = useMemo(
     () => (args === null ? null : (["edgepod", functionName, args] as unknown[])),
     [functionName, args],
+  );
+
+  const swrConfig = useMemo(
+    () => ({
+      fallbackData: options?.fallbackData,
+      onSuccess: options?.onSuccess,
+      onError: options?.onError,
+      suspense: options?.suspense,
+      errorRetryCount: options?.errorRetryCount,
+    }),
+    [options],
   );
 
   const {
@@ -26,7 +41,7 @@ export function useQuery<T>(
     isLoading,
     isValidating,
     mutate,
-  } = useSWR(key, key ? () => rpcFetcher<T>(ctx, functionName, args ?? {}) : null, config);
+  } = useSWR(key, key ? () => rpcFetcher<T>(ctx, functionName, args ?? {}) : null, swrConfig);
 
   const metaTables = result?._meta?.t;
   const tablesDep = metaTables ? metaTables.join(",") : "";

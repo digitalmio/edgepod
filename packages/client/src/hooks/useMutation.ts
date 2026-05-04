@@ -1,19 +1,21 @@
 import useSWRMutation from "swr/mutation";
 import { rpcFetcher } from "../rpc/fetcher";
 import { invalidateTables } from "../store/registry";
+import { useEdgePod } from "../provider/provider";
 
-type RpcCtx = {
-  url: string;
-  apiKey: string;
-  sessionId: string;
+export type UseMutationOptions<T> = {
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
 };
 
-export function useMutation<T, A = any>(
-  ctx: RpcCtx,
-  functionName: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  config?: any,
-) {
+export function useMutation<T, A = any>(functionName: string, options?: UseMutationOptions<T>) {
+  const ctx = useEdgePod();
+
+  const swrConfig = {
+    onSuccess: options?.onSuccess,
+    onError: options?.onError,
+  };
+
   const { trigger, data, error, isMutating } = useSWRMutation(
     functionName,
     async (_, { arg }: { arg?: A }) => {
@@ -23,17 +25,13 @@ export function useMutation<T, A = any>(
         arg as unknown as Record<string, unknown>,
       );
 
-      // Immediate client-side invalidation (Option C) — the server also broadcasts
-      // to all other sessions via WebSocket, so cross-client sync is handled there.
       if (_meta.t.length > 0) {
         invalidateTables(_meta.t);
       }
 
-      // TODO: Add optimistic updates support
-
       return rpcData;
     },
-    config,
+    swrConfig,
   );
 
   return { trigger, data, error, isMutating };

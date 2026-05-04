@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import useSWRMutation from "swr/mutation";
+import { EdgePodProvider } from "../provider/provider";
 import { useMutation } from "./useMutation";
 import { invalidateTables } from "../store/registry";
 
@@ -22,7 +23,11 @@ const mockedRpcFetcher = vi.fn();
 
 import { rpcFetcher } from "../rpc/fetcher";
 
-const mockCtx = { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" };
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <EdgePodProvider url="https://api.edgepod.dev" apiKey="key">
+    {children}
+  </EdgePodProvider>
+);
 
 beforeEach(() => {
   vi.mocked(rpcFetcher).mockImplementation(mockedRpcFetcher);
@@ -33,9 +38,11 @@ beforeEach(() => {
 describe("useMutation", () => {
   it("calls invalidateTables on successful mutation with _meta.t", async () => {
     const triggerFn = vi.fn(async () => {
-      const { data: rpcData, _meta } = await rpcFetcher(mockCtx, "createUser", {
-        email: "a@b.com",
-      });
+      const { data: rpcData, _meta } = await rpcFetcher(
+        { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" },
+        "createUser",
+        { email: "a@b.com" },
+      );
 
       if (_meta.t.length > 0) {
         invalidateTables(_meta.t);
@@ -56,7 +63,7 @@ describe("useMutation", () => {
       _meta: { t: ["a1b2", "c3d4"] },
     });
 
-    const { result } = renderHook(() => useMutation(mockCtx, "createUser"));
+    const { result } = renderHook(() => useMutation("createUser"), { wrapper });
 
     await result.current.trigger({ email: "a@b.com" });
 
@@ -65,7 +72,11 @@ describe("useMutation", () => {
 
   it("does not call invalidateTables when _meta.t is empty", async () => {
     const triggerFn = vi.fn(async () => {
-      const { data: rpcData, _meta } = await rpcFetcher(mockCtx, "ping", {});
+      const { data: rpcData, _meta } = await rpcFetcher(
+        { url: "https://api.edgepod.dev", apiKey: "key", sessionId: "sid" },
+        "ping",
+        {},
+      );
 
       if (_meta.t.length > 0) {
         invalidateTables(_meta.t);
@@ -86,7 +97,7 @@ describe("useMutation", () => {
       _meta: { t: [] },
     });
 
-    const { result } = renderHook(() => useMutation(mockCtx, "ping"));
+    const { result } = renderHook(() => useMutation("ping"), { wrapper });
 
     await result.current.trigger({});
 
@@ -101,7 +112,7 @@ describe("useMutation", () => {
       isMutating: true,
     });
 
-    const { result } = renderHook(() => useMutation(mockCtx, "createUser"));
+    const { result } = renderHook(() => useMutation("createUser"), { wrapper });
 
     expect(typeof result.current.trigger).toBe("function");
     expect(result.current.data).toEqual({ id: 1 });
