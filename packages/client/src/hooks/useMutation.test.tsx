@@ -65,7 +65,7 @@ describe("useMutation", () => {
 
     const { result } = renderHook(() => useMutation("createUser"), { wrapper });
 
-    await result.current.trigger({ email: "a@b.com" });
+    await (result.current.trigger as any)({ email: "a@b.com" });
 
     expect(invalidateTables).toHaveBeenCalledWith(["a1b2", "c3d4"]);
   });
@@ -99,7 +99,7 @@ describe("useMutation", () => {
 
     const { result } = renderHook(() => useMutation("ping"), { wrapper });
 
-    await result.current.trigger({});
+    await (result.current.trigger as any)({});
 
     expect(invalidateTables).not.toHaveBeenCalled();
   });

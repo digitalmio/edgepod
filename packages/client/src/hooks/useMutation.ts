@@ -1,4 +1,5 @@
-import useSWRMutation from "swr/mutation";
+import { useMemo } from "react";
+import useSWRMutation, { type SWRMutationConfiguration } from "swr/mutation";
 import { rpcFetcher } from "../rpc/fetcher";
 import { invalidateTables } from "../store/registry";
 import { useEdgePod } from "../provider/provider";
@@ -11,10 +12,16 @@ export type UseMutationOptions<T> = {
 export function useMutation<T, A = any>(functionName: string, options?: UseMutationOptions<T>) {
   const ctx = useEdgePod();
 
-  const swrConfig = {
-    onSuccess: options?.onSuccess,
-    onError: options?.onError,
-  };
+  const swrConfig = useMemo<SWRMutationConfiguration<T, Error, string, A>>(() => {
+    const cfg: SWRMutationConfiguration<T, Error, string, A> = {};
+    if (options?.onSuccess) {
+      cfg.onSuccess = (data) => options.onSuccess!(data);
+    }
+    if (options?.onError) {
+      cfg.onError = (err) => options.onError!(err as Error);
+    }
+    return cfg;
+  }, [options]);
 
   const { trigger, data, error, isMutating } = useSWRMutation(
     functionName,

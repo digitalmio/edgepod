@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { type SWRConfiguration } from "swr";
 import { rpcFetcher } from "../rpc/fetcher";
 import { registerQuery, deregisterQuery } from "../store/registry";
 import { useEdgePod } from "../provider/provider";
@@ -24,16 +24,21 @@ export function useQuery<T>(
     [functionName, args],
   );
 
-  const swrConfig = useMemo(
-    () => ({
-      fallbackData: options?.fallbackData,
-      onSuccess: options?.onSuccess,
-      onError: options?.onError,
-      suspense: options?.suspense,
-      errorRetryCount: options?.errorRetryCount,
-    }),
-    [options],
-  );
+  const swrConfig = useMemo<SWRConfiguration<{ data: T; _meta: { t: string[] } }>>(() => {
+    const cfg: SWRConfiguration<{ data: T; _meta: { t: string[] } }> = {};
+    if (options?.fallbackData !== undefined) {
+      cfg.fallbackData = { data: options.fallbackData, _meta: { t: [] } };
+    }
+    if (options?.suspense !== undefined) cfg.suspense = options.suspense;
+    if (options?.errorRetryCount !== undefined) cfg.errorRetryCount = options.errorRetryCount;
+    if (options?.onSuccess) {
+      cfg.onSuccess = (data) => options.onSuccess!(data.data);
+    }
+    if (options?.onError) {
+      cfg.onError = (err) => options.onError!(err as Error);
+    }
+    return cfg;
+  }, [options]);
 
   const {
     data: result,
