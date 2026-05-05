@@ -22,6 +22,8 @@ Every EdgePod project is deployed directly to the user's Cloudflare account as a
 - **The Gateway Worker:** A stateless entry point that handles incoming HTTP requests, upgrades WebSockets, verifies authentication keys (`EP_PK_...`), and routes traffic to the correct Durable Object.
 - **The EdgePod Engine (Durable Object):** A single, atomic, stateful instance containing the embedded SQLite database. It maintains all active WebSocket connections in memory and executes the user's RPC functions.
 
+> Durable Objects are incredibly powerful, but they are intentionally small and resource-constrained. Pushing large payloads or running unbounded queries can increase your Cloudflare bill and degrade performance. EdgePod puts safety nets in place to help you avoid these pitfalls.
+
 ### The Dual-Protocol Network Layer
 
 - **HTTP for Data Transfer (The Workhorse):** All queries (`getUsers`) and mutations (`insertUser`) are executed via standard HTTP POST requests. This ensures massive payloads are handled gracefully with native browser gzipping, standard HTTP status codes, and easy network tab debugging.
@@ -145,6 +147,21 @@ function Users() {
 ```
 
 The provider manages the WebSocket lifecycle. When another user inserts a row, your `useQuery` cache refreshes automatically via WebSocket invalidation signals.
+
+---
+
+## 🦺 Safety Nets
+
+EdgePod helps you stay within Durable Object limits with lightweight, always-on guards:
+
+| Guard                 | What it does                                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Result limit**      | Queries are capped at **1 000 rows**. If a query returns exactly 1 000 rows, a warning is logged to paginate with `.limit()` and `.offset()`.                                                     |
+| **WHERE enforcement** | `UPDATE` and `DELETE` without a `.where()` clause are blocked. If you really mean to affect every row, chain `.withoutWhere()` to opt out per-query.                                              |
+| **Raw SQL guard**     | Dangerous raw methods like `db.run()` and `db.get()` are blocked on the tracked database instance. Use `ctx.unsafeRawDb` explicitly if you need raw access, and call `ctx.invalidate()` manually. |
+| **Bulk insert limit** | `insert().values()` arrays are capped at 1 000 rows to avoid oversized writes.                                                                                                                    |
+
+These are not configuration options — they are designed to catch accidental misuse early, while giving you explicit escape hatches when you need them.
 
 ---
 
