@@ -1,3 +1,4 @@
+import "./drizzle-strict";
 import type { DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import type { Logger } from "../server/logger";
 

@@ -1,9 +1,10 @@
 import { getTableName } from "drizzle-orm";
 import { RawDrizzleDb, EdgePodSessionMap } from "../types";
+import { checkResultWarnings } from "./checkResultWarnings";
+import { createSelectProxy } from "./createSelectProxy";
+import { createMutationProxy } from "./createMutationProxy";
 
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
-const JOIN_METHODS = ["from", "leftJoin", "innerJoin", "rightJoin", "fullJoin"];
-const MUTATION_METHODS = ["insert", "update", "delete"];
 const MAX_LIMIT = 1000;
 
 function recordMutationWithCascades(
@@ -11,10 +12,8 @@ function recordMutationWithCascades(
   tablesWritten: Set<string>,
   cascadeGraph: Map<string, Set<string>>,
 ) {
-  if (tablesWritten.has(tableName)) return; // Prevent infinite loops
-
+  if (tablesWritten.has(tableName)) return;
   tablesWritten.add(tableName);
-
   const children = cascadeGraph.get(tableName);
   if (children) {
     for (const child of children) {
@@ -23,89 +22,36 @@ function recordMutationWithCascades(
   }
 }
 
-function checkResultWarnings(result: unknown, warnings: string[]) {
-  if (Array.isArray(result) && result.length === MAX_LIMIT) {
-    warnings.push(
-      `Query returned exactly ${MAX_LIMIT} rows — there may be more results. Use .limit() and .offset() to paginate.`,
-    );
-  }
-}
-
-function createSelectProxy(
-  builder: any,
-  sessionId: string,
-  activeSessions: EdgePodSessionMap,
-  tablesRead: Set<string>,
-  warnings: string[],
-  state = { limitSet: false },
-): any {
+function createInsertProxy(builder: any, maxLimit: number) {
   return new Proxy(builder, {
-    get(target, prop: string) {
-      if (prop === "limit") {
-        return function (n: number) {
-          state.limitSet = true;
-          if (n > MAX_LIMIT) {
-            warnings.push(`Query limit of ${n} overridden to ${MAX_LIMIT}.`);
-          }
-          return createSelectProxy(
-            target.limit(Math.min(n, MAX_LIMIT)),
-            sessionId,
-            activeSessions,
-            tablesRead,
-            warnings,
-            state,
-          );
-        };
-      }
-
-      if (prop === "then") {
-        return function (resolve: any, reject: any) {
-          const finalBuilder = state.limitSet ? target : target.limit(MAX_LIMIT);
-          return finalBuilder.then((result: any) => {
-            checkResultWarnings(result, warnings);
-            return resolve(result);
-          }, reject);
-        };
-      }
-
-      if (JOIN_METHODS.includes(prop)) {
-        return function (table: any, ...restArgs: any[]) {
-          const tableName = getTableName(table) ?? "unknown";
-          const session = activeSessions.get(sessionId);
-          if (tableName !== "unknown") {
-            if (session) session.listeningToTables.add(tableName);
-            tablesRead.add(tableName);
-          }
-          return createSelectProxy(
-            target[prop](table, ...restArgs),
-            sessionId,
-            activeSessions,
-            tablesRead,
-            warnings,
-            state,
-          );
-        };
-      }
-
-      const value = target[prop];
-      if (typeof value === "function") {
-        return function (...args: any[]) {
-          const result = value.apply(target, args);
-          if (result && typeof result === "object" && "then" in result) {
-            return createSelectProxy(
-              result,
-              sessionId,
-              activeSessions,
-              tablesRead,
-              warnings,
-              state,
+    get(builderTarget, builderProp: string) {
+      if (builderProp === "values") {
+        return function (rows: any) {
+          if (Array.isArray(rows) && rows.length > maxLimit) {
+            throw new Error(
+              `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
             );
           }
-          return result;
+          return builderTarget.values(rows);
         };
       }
+      const value = builderTarget[builderProp];
+      return typeof value === "function" ? value.bind(builderTarget) : value;
+    },
+  });
+}
 
-      return value;
+function createUpdateBuilderProxy(builder: any, warnings: string[]) {
+  return new Proxy(builder, {
+    get(builderTarget, builderProp: string) {
+      if (builderProp === "set") {
+        return function (...setArgs: any[]) {
+          const base = builderTarget.set.apply(builderTarget, setArgs);
+          return createMutationProxy(base, warnings, "update");
+        };
+      }
+      const value = builderTarget[builderProp];
+      return typeof value === "function" ? value.bind(builderTarget) : value;
     },
   });
 }
@@ -125,69 +71,55 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
 ) {
   return new Proxy(realDb, {
     get(target, prop: string) {
-      // simple blocker of the unsafe methods
       if (FORBIDDEN_RAW_METHODS.includes(prop)) {
         throw new Error(
-          `[EdgePod] Raw SQL execution via 'ctx.db.${prop}()' is blocked to preserve real-time reactivity.
-Please use the standard Drizzle query builder (e.g., ctx.db.select(), ctx.db.update()).
-If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.invalidate()' manually.`,
+          `[EdgePod] Raw SQL via 'ctx.db.${prop}()' is blocked. Use ctx.db.select()/ctx.db.update(). ` +
+            `For raw SQL, use ctx.unsafeRawDb.${prop}() and call ctx.invalidate() manually.`,
         );
       }
 
-      // Mutations (insert, update, delete)
-      if (MUTATION_METHODS.includes(prop)) {
+      if (prop === "insert") {
         return function (table: any, ...restArgs: any[]) {
           const tableName = getTableName(table) ?? "unknown";
-
           if (tableName !== "unknown") {
-            // Only deletes trigger ON DELETE CASCADE — pass an empty graph for insert/update
-            recordMutationWithCascades(
-              tableName,
-              tablesWritten,
-              prop === "delete" ? cascadeGraph : new Map(),
-            );
+            recordMutationWithCascades(tableName, tablesWritten, new Map());
           }
-
           const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
-
-          // Cap bulk inserts — intercept .values() on the insert builder
-          if (prop === "insert") {
-            return new Proxy(builder, {
-              get(builderTarget, builderProp: string) {
-                if (builderProp === "values") {
-                  return function (rows: any) {
-                    if (Array.isArray(rows) && rows.length > MAX_LIMIT) {
-                      throw new Error(
-                        `[EdgePod] Bulk insert blocked: ${rows.length} rows exceeds the ${MAX_LIMIT}-row limit. ` +
-                          `Split your data into batches of ${MAX_LIMIT} or fewer.`,
-                      );
-                    }
-                    return builderTarget.values(rows);
-                  };
-                }
-                const value = builderTarget[builderProp];
-                return typeof value === "function" ? value.bind(builderTarget) : value;
-              },
-            });
-          }
-
-          return builder;
+          return createInsertProxy(builder, MAX_LIMIT);
         };
       }
 
-      // Relational query API
+      if (prop === "update") {
+        return function (table: any, ...restArgs: any[]) {
+          const tableName = getTableName(table) ?? "unknown";
+          if (tableName !== "unknown") {
+            recordMutationWithCascades(tableName, tablesWritten, new Map());
+          }
+          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
+          return createUpdateBuilderProxy(builder, warnings);
+        };
+      }
+
+      if (prop === "delete") {
+        return function (table: any, ...restArgs: any[]) {
+          const tableName = getTableName(table) ?? "unknown";
+          if (tableName !== "unknown") {
+            recordMutationWithCascades(tableName, tablesWritten, cascadeGraph);
+          }
+          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
+          return createMutationProxy(builder, warnings, "delete");
+        };
+      }
+
       if (prop === "query") {
         const queryObject = (target as any).query;
         if (!queryObject) return undefined;
-
         return new Proxy(queryObject, {
           get(queryTarget, tableProp: string) {
             const session = activeSessions.get(sessionId);
             if (session) session.listeningToTables.add(tableProp);
             tablesRead.add(tableProp);
-
             const tableApi = queryTarget[tableProp];
-
             return new Proxy(tableApi, {
               get(tableTarget, method: string) {
                 if (method === "findMany") {
@@ -198,12 +130,11 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
                       warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
                     }
                     return tableTarget.findMany({ ...opts, limit }).then((result: any[]) => {
-                      checkResultWarnings(result, warnings);
+                      checkResultWarnings(result, warnings, MAX_LIMIT);
                       return result;
                     });
                   };
                 }
-                // findFirst is implicitly LIMIT 1 — no cap needed
                 const value = tableTarget[method];
                 return typeof value === "function" ? value.bind(tableTarget) : value;
               },
@@ -212,7 +143,6 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
         });
       }
 
-      // Selects (Reads & Joins)
       if (prop === "select" || prop === "selectDistinct") {
         return function (...args: any[]) {
           return createSelectProxy(
@@ -221,11 +151,11 @@ If you absolutely need raw SQL, use 'ctx.unsafeRawDb.${prop}()' and call 'ctx.in
             activeSessions,
             tablesRead,
             warnings,
+            MAX_LIMIT,
           );
         };
       }
 
-      // All the rest, just pass directly to the real Drizzle instance
       const value = (target as any)[prop];
       return typeof value === "function" ? value.bind(target) : value;
     },
