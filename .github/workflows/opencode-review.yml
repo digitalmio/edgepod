@@ -18,11 +18,9 @@ jobs:
 
       - uses: anomalyco/opencode/github@latest
         env:
-          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
           model: opencode/kimi-k2.6
-          use_github_token: true
           prompt: |
             Review this pull request as a senior engineer. Focus on:
 
