@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createMutationProxy } from "./createMutationProxy";
 
 function createMockBuilder() {
-  const builder: any = {
+  const builder: Record<string, unknown> = {
     where: vi.fn(function () {
       return createMockBuilder();
     }),
@@ -101,8 +101,10 @@ describe("createMutationProxy", () => {
 
   it("allows via .then() with WHERE", async () => {
     const builder = createMockBuilder();
+    const whereResult = createMockBuilder();
+    builder.where = vi.fn(() => whereResult);
     // oxlint-disable-next-line unicorn/no-thenable
-    builder.then = vi.fn(function (resolve: (v: any) => void) {
+    whereResult.then = vi.fn(function (resolve: (v: unknown) => void) {
       resolve({ changes: 1 });
       return Promise.resolve({ changes: 1 });
     });
@@ -158,5 +160,31 @@ describe("createMutationProxy", () => {
     const proxy = createMutationProxy(builder, [], "delete");
 
     expect(() => proxy.run()).toThrow("DELETE without WHERE is blocked");
+  });
+
+  it("wraps the builder returned by .where() — not the original", async () => {
+    const builder = createMockBuilder();
+    const whereResult = createMockBuilder();
+    builder.where = vi.fn(() => whereResult);
+
+    const proxy = createMutationProxy(builder, [], "update");
+    const withWhere = proxy.where({ id: 1 });
+
+    await withWhere.run();
+    expect(whereResult.run).toHaveBeenCalled();
+    expect(builder.run).not.toHaveBeenCalled();
+  });
+
+  it("wraps the builder returned by .withoutWhere() — not the original", async () => {
+    const builder = createMockBuilder();
+    const withoutWhereResult = createMockBuilder();
+    builder.withoutWhere = vi.fn(() => withoutWhereResult);
+
+    const proxy = createMutationProxy(builder, [], "delete");
+    const withoutWhere = proxy.withoutWhere();
+
+    await withoutWhere.run();
+    expect(withoutWhereResult.run).toHaveBeenCalled();
+    expect(builder.run).not.toHaveBeenCalled();
   });
 });

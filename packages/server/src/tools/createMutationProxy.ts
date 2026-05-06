@@ -11,15 +11,16 @@ export function createMutationProxy(
       if (prop === "where") {
         return function (...whereArgs: any[]) {
           state.whereSet = true;
-          target.where.apply(target, whereArgs);
-          return createMutationProxy(target, warnings, mutationType, state);
+          const next = target.where.apply(target, whereArgs);
+          return createMutationProxy(next, warnings, mutationType, state);
         };
       }
 
       if (prop === "withoutWhere") {
         return function () {
           state.withoutWhereSet = true;
-          return createMutationProxy(target, warnings, mutationType, state);
+          const next = target.withoutWhere.apply(target);
+          return createMutationProxy(next, warnings, mutationType, state);
         };
       }
 

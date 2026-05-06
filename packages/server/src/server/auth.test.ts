@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("jose", () => {
-  const mockJwtVerify = vi.fn(async (token: string, _keyGetter: any, _options?: any) => {
+  const mockJwtVerify = vi.fn(async (token: string, _keyGetter: unknown, _options?: unknown) => {
     if (token === "expired-token") {
       const err = new Error("jwt expired");
       throw err;
@@ -111,7 +111,7 @@ describe("verifyJwt", () => {
     };
 
     await verifyJwt("valid-token", {
-      ASSETS: mockAssets as any,
+      ASSETS: mockAssets as unknown,
     });
 
     expect(mockAssets.fetch).toHaveBeenCalledWith("http://localhost/.well-known/jwks.json");
@@ -126,7 +126,7 @@ describe("verifyJwt", () => {
       EDGEPOD_JWKS_URL: "https://example.com/.well-known/jwks.json",
     });
 
-    (createRemoteJWKSet as ReturnType<typeof vi.fn>).mockClear();
+    vi.mocked(createRemoteJWKSet).mockClear();
 
     await verifyJwt("valid-token", {
       EDGEPOD_JWKS_URL: "https://example.com/.well-known/jwks.json",
@@ -157,7 +157,7 @@ describe("verifyJwt", () => {
     };
 
     const result = await verifyJwt("valid-token", {
-      ASSETS: mockAssets as any,
+      ASSETS: mockAssets as unknown,
     });
 
     expect(result.isErr()).toBe(true);
@@ -179,7 +179,7 @@ describe("verifyJwt", () => {
     };
 
     const result = await verifyJwt("valid-token", {
-      ASSETS: mockAssets as any,
+      ASSETS: mockAssets as unknown,
     });
 
     expect(result.isErr()).toBe(true);

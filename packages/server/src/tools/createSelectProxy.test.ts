@@ -3,17 +3,22 @@ import { createSelectProxy } from "./createSelectProxy";
 import type { EdgePodSessionMap } from "../types";
 
 vi.mock("drizzle-orm", () => ({
-  getTableName: vi.fn((t: any) => t?.name ?? "unknown"),
+  getTableName: vi.fn((t: { name?: string } | null) => t?.name ?? "unknown"),
 }));
 
-function createMockBuilder(options: { resultData?: any[]; limit?: number } = {}) {
+function createMockBuilder(
+  options: { resultData?: Record<string, unknown>[]; limit?: number } = {},
+) {
   const { resultData = [], limit: initialLimit } = options;
   let currentLimit = initialLimit;
 
-  const builder: any = {
+  const builder: Record<string, unknown> = {
     limit: vi.fn(function (n: number) {
       currentLimit = n;
-      const opts: { resultData: any[]; limit: number } = { resultData, limit: n };
+      const opts: { resultData: Record<string, unknown>[]; limit: number } = {
+        resultData,
+        limit: n,
+      };
       return createMockBuilder(opts);
     }),
     where: vi.fn(function () {
@@ -22,13 +27,13 @@ function createMockBuilder(options: { resultData?: any[]; limit?: number } = {})
     from: vi.fn(function () {
       return builder;
     }),
-    leftJoin: vi.fn(function (table: any) {
-      const opts: { resultData: any[]; limit?: number } = { resultData };
+    leftJoin: vi.fn(function (_table: unknown) {
+      const opts: { resultData: Record<string, unknown>[]; limit?: number } = { resultData };
       if (currentLimit !== undefined) opts.limit = currentLimit;
       return createMockBuilder(opts);
     }),
-    innerJoin: vi.fn(function (table: any) {
-      const opts: { resultData: any[]; limit?: number } = { resultData };
+    innerJoin: vi.fn(function (_table: unknown) {
+      const opts: { resultData: Record<string, unknown>[]; limit?: number } = { resultData };
       if (currentLimit !== undefined) opts.limit = currentLimit;
       return createMockBuilder(opts);
     }),
@@ -39,7 +44,7 @@ function createMockBuilder(options: { resultData?: any[]; limit?: number } = {})
       return builder;
     }),
     // oxlint-disable-next-line unicorn/no-thenable
-    then: vi.fn(function (resolve: (v: any) => void, reject: (e: any) => void) {
+    then: vi.fn(function (resolve: (v: unknown) => void, reject: (e: unknown) => void) {
       const finalLimit = currentLimit ?? 1000;
       return Promise.resolve(resultData.slice(0, finalLimit)).then(resolve, reject);
     }),

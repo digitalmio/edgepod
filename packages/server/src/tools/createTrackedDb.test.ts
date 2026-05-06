@@ -3,7 +3,7 @@ import { createTrackedDb } from "./createTrackedDb";
 import type { EdgePodSessionMap, RawDrizzleDb } from "../types";
 
 vi.mock("drizzle-orm", () => ({
-  getTableName: vi.fn((t: any) => t?.name ?? "unknown"),
+  getTableName: vi.fn((t: { name?: string } | null) => t?.name ?? "unknown"),
 }));
 
 function createMutationBuilder(type: string) {
@@ -30,28 +30,16 @@ function createMutationBuilder(type: string) {
 }
 
 function createMockDb() {
-  const db: any = {
+  const db: Record<string, unknown> = {
     select: vi.fn(() => createSelectBuilder()),
     selectDistinct: vi.fn(() => createSelectBuilder()),
-    insert: vi.fn((table: any) => ({
+    insert: vi.fn((_table: unknown) => ({
       values: vi.fn(function () {
         return Promise.resolve({ inserted: true });
       }),
-      set: vi.fn(function () {
-        return createMutationBuilder("update");
-      }),
-      where: vi.fn(function () {
-        return createMutationBuilder("update");
-      }),
-      withoutWhere: vi.fn(function () {
-        return createMutationBuilder("update");
-      }),
-      run: vi.fn(function () {
-        return Promise.resolve({ changes: 1 });
-      }),
     })),
-    update: vi.fn((table: any) => createMutationBuilder("update")),
-    delete: vi.fn((table: any) => createMutationBuilder("delete")),
+    update: vi.fn((_table: unknown) => createMutationBuilder("update")),
+    delete: vi.fn((_table: unknown) => createMutationBuilder("delete")),
     query: {
       users: createQueryTableApi("users"),
       posts: createQueryTableApi("posts"),
@@ -67,18 +55,18 @@ function createMockDb() {
 }
 
 function createSelectBuilder() {
-  const builder: any = {
+  const builder: Record<string, unknown> = {
     limit: vi.fn(function () {
       return builder;
     }),
     where: vi.fn(function () {
       return builder;
     }),
-    from: vi.fn(function (table: any) {
+    from: vi.fn(function (_table: unknown) {
       return builder;
     }),
     // oxlint-disable-next-line unicorn/no-thenable
-    then: vi.fn(function (resolve: (v: any) => void) {
+    then: vi.fn(function (resolve: (v: unknown) => void) {
       resolve([{ id: 1 }]);
       return Promise.resolve([{ id: 1 }]);
     }),
@@ -88,8 +76,8 @@ function createSelectBuilder() {
 
 function createQueryTableApi(tableName: string) {
   return {
-    findMany: vi.fn(function (opts: any = {}) {
-      const limit = opts.limit ?? 1000;
+    findMany: vi.fn(function (opts: Record<string, unknown> = {}) {
+      const limit = (opts.limit as number) ?? 1000;
       return Promise.resolve(Array(Math.min(limit, 10)).fill({ id: 1, table: tableName }));
     }),
     findFirst: vi.fn(function () {
@@ -215,6 +203,14 @@ describe("createTrackedDb", () => {
     expect(tablesRead.has("users")).toBe(true);
   });
 
+  it("tracks select as table read via query.findFirst", async () => {
+    const { proxy } = createProxy();
+
+    await (proxy as any).query.users.findFirst();
+
+    expect(tablesRead.has("users")).toBe(true);
+  });
+
   it("registers listening tables on session via query.findMany", async () => {
     const { proxy } = createProxy();
 
@@ -233,13 +229,16 @@ describe("createTrackedDb", () => {
   });
 
   it("caps query.findMany limit at max", async () => {
-    const { proxy } = createProxy();
+    const { proxy, mockDb } = createProxy();
 
     await (proxy as any).query.users.findMany({ limit: 5000 });
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("5000");
     expect(warnings[0]).toContain("1000");
+    expect(mockDb.query.users.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 1000 }),
+    );
   });
 
   it("blocks bulk insert exceeding max limit", () => {
