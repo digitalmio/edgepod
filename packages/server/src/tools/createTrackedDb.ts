@@ -28,7 +28,16 @@ function createInsertProxy(
         };
       }
       const value = builderTarget[builderProp];
-      return typeof value === "function" ? value.bind(builderTarget) : value;
+      if (typeof value === "function") {
+        return function (...args: unknown[]) {
+          const result = value.apply(builderTarget, args);
+          if (result && typeof result === "object" && "then" in result) {
+            return createInsertProxy(result, maxLimit, tableName, tablesWritten);
+          }
+          return result;
+        };
+      }
+      return value;
     },
   });
 }
@@ -49,7 +58,16 @@ function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<str
           };
         }
         const value = resultTarget[prop];
-        return typeof value === "function" ? value.bind(resultTarget) : value;
+        if (typeof value === "function") {
+          return function (...args: unknown[]) {
+            const next = value.apply(resultTarget, args);
+            if (next && typeof next === "object" && "then" in next) {
+              return wrapInsertResult(next, tableName, tablesWritten);
+            }
+            return next;
+          };
+        }
+        return value;
       },
     });
   }
@@ -145,7 +163,9 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
                 if (method === "findMany") {
                   return function (opts: Record<string, unknown> = {}) {
                     const limit =
-                      typeof opts.limit === "number" ? Math.min(opts.limit, MAX_LIMIT) : MAX_LIMIT;
+                      typeof opts.limit === "number" && Number.isFinite(opts.limit)
+                        ? Math.min(opts.limit, MAX_LIMIT)
+                        : MAX_LIMIT;
                     if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
                       warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
                     }
@@ -195,5 +215,11 @@ function trackWithRelations(
     const session = activeSessions.get(sessionId);
     if (session) session.listeningToTables.add(relation);
     tablesRead.add(relation);
+    trackWithRelations(
+      withOpt[relation] as Record<string, unknown>,
+      tablesRead,
+      activeSessions,
+      sessionId,
+    );
   }
 }

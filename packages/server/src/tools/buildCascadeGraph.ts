@@ -1,16 +1,16 @@
 import { getTableName } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
-export function buildCascadeGraph(schema: Record<string, any>) {
+export function buildCascadeGraph(schema: Record<string, unknown>) {
   // Map of Parent Table -> Set of Child Tables that cascade
   const cascadeGraph = new Map<string, Set<string>>();
 
   for (const key in schema) {
     const table = schema[key];
     // Fast check if this is a Drizzle table object
-    if (!table || !table[Symbol.for("drizzle:Name")]) continue;
+    if (!table || !(table as any)[Symbol.for("drizzle:Name")]) continue;
 
-    const config = getTableConfig(table);
+    const config = getTableConfig(table as any);
     const childTableName = config.name;
 
     // Look through foreign keys for cascades

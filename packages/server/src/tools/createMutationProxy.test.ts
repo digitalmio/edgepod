@@ -141,14 +141,12 @@ describe("createMutationProxy", () => {
     });
   });
 
-  it("wraps thenable method results in a new proxy", async () => {
+  it("returning proxy preserves WHERE guard", async () => {
     const builder = createMockBuilder();
     const proxy = createMutationProxy(builder, [], "update");
     const withWhere = proxy.where({ id: 1 });
-
     const returning = withWhere.returning();
-    expect(typeof returning.where).toBe("function");
-    expect(typeof returning.run).toBe("function");
+    await expect(returning.run()).resolves.toEqual({ changes: 1 });
   });
 
   it("returns non-function values as-is", () => {
