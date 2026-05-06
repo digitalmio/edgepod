@@ -4,6 +4,7 @@ import {
   importJWK,
   jwtVerify,
   SignJWT,
+  errors,
   type FlattenedJWSInput,
   type GetKeyFunction,
   type JSONWebKeySet,
@@ -82,11 +83,9 @@ export function verifyJwt(
 ): ResultAsync<JWTPayload, string> {
   return resolveJwks(env).andThen((keyGetter) => {
     return ResultAsync.fromPromise(jwtVerify(token, keyGetter, options), (e) => {
-      if (e instanceof Error) {
-        if (e.message.includes("expired")) return "Token expired";
-        if (e.message.includes("signature")) return "Invalid signature";
-        return e.message;
-      }
+      if (e instanceof errors.JWTExpired) return "Token expired";
+      if (e instanceof errors.JWSSignatureVerificationFailed) return "Invalid signature";
+      if (e instanceof Error) return e.message;
       return "Invalid token";
     }).map(({ payload }) => payload);
   });
