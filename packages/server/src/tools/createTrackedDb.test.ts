@@ -6,7 +6,7 @@ vi.mock("drizzle-orm", () => ({
   getTableName: vi.fn((t: { name?: string } | null) => t?.name ?? "unknown"),
 }));
 
-function createMutationBuilder(type: string) {
+function createUpdateBuilder() {
   return {
     set: vi.fn(function () {
       return {
@@ -29,6 +29,18 @@ function createMutationBuilder(type: string) {
   };
 }
 
+function createDeleteBuilder() {
+  return {
+    where: vi.fn(function () {
+      return { run: vi.fn(() => Promise.resolve({ changes: 1 })) };
+    }),
+    withoutWhere: vi.fn(function () {
+      return { run: vi.fn(() => Promise.resolve({ changes: 1 })) };
+    }),
+    run: vi.fn(() => Promise.resolve({ changes: 1 })),
+  };
+}
+
 function createMockDb() {
   const db: Record<string, unknown> = {
     select: vi.fn(() => createSelectBuilder()),
@@ -38,8 +50,8 @@ function createMockDb() {
         return Promise.resolve({ inserted: true });
       }),
     })),
-    update: vi.fn((_table: unknown) => createMutationBuilder("update")),
-    delete: vi.fn((_table: unknown) => createMutationBuilder("delete")),
+    update: vi.fn((_table: unknown) => createUpdateBuilder()),
+    delete: vi.fn((_table: unknown) => createDeleteBuilder()),
     query: {
       users: createQueryTableApi("users"),
       posts: createQueryTableApi("posts"),

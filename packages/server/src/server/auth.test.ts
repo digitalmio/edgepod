@@ -23,7 +23,10 @@ vi.mock("jose", () => {
   const mockImportJWK = vi.fn(async () => mockImportReturnValue);
   const mockSignJWT = vi.fn(async () => "signed-jwt-token");
 
-  const MockSignJWT = vi.fn(function (this: any, claims: Record<string, unknown>) {
+  const MockSignJWT = vi.fn(function (
+    this: Record<string, unknown>,
+    claims: Record<string, unknown>,
+  ) {
     this.claims = claims;
     this.setProtectedHeader = vi.fn(() => this);
     this.setIssuedAt = vi.fn(() => this);

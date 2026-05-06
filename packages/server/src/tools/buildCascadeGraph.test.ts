@@ -20,7 +20,9 @@ function createMockTable(name: string) {
 
 describe("buildCascadeGraph", () => {
   beforeEach(() => {
-    vi.mocked(getTableName).mockImplementation((t: any) => t[mockTableSymbol] ?? t);
+    vi.mocked(getTableName).mockImplementation(
+      (t: { [mockTableSymbol]?: string }) => t[mockTableSymbol] ?? t,
+    );
   });
 
   it("returns empty graph for empty schema", () => {

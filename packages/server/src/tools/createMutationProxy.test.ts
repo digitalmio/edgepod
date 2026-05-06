@@ -187,4 +187,20 @@ describe("createMutationProxy", () => {
     expect(withoutWhereResult.run).toHaveBeenCalled();
     expect(builder.run).not.toHaveBeenCalled();
   });
+
+  it("original proxy remains blocked after calling .where() on a branch", () => {
+    const builder = createMockBuilder();
+    const proxy = createMutationProxy(builder, [], "update");
+
+    proxy.where({ id: 1 });
+    expect(() => proxy.run()).toThrow("UPDATE without WHERE is blocked");
+  });
+
+  it("original proxy remains blocked after calling .withoutWhere() on a branch", () => {
+    const builder = createMockBuilder();
+    const proxy = createMutationProxy(builder, [], "delete");
+
+    proxy.withoutWhere();
+    expect(() => proxy.run()).toThrow("DELETE without WHERE is blocked");
+  });
 });

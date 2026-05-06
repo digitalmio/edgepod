@@ -202,4 +202,14 @@ describe("createSelectProxy", () => {
     expect(withWhere).toBeDefined();
     expect(typeof withWhere.then).toBe("function");
   });
+
+  it("original proxy still applies max limit after .limit() on a branch", async () => {
+    const builder = createMockBuilder({ resultData: Array(2000).fill({ id: 1 }) });
+    const proxy = createSelectProxy(builder, sessionId, activeSessions, tablesRead, warnings, 1000);
+
+    proxy.limit(50);
+    const result = await proxy;
+
+    expect(result).toHaveLength(1000);
+  });
 });
