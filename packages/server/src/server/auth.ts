@@ -11,6 +11,7 @@ import {
   type JWTPayload,
   type JWTClaimVerificationOptions,
 } from "jose";
+import { ResultAsync, okAsync, errAsync } from "neverthrow";
 
 type AuthEnv = {
   EDGEPOD_JWKS_URL?: string;
@@ -26,61 +27,83 @@ let signingKey: CryptoKey | null = null;
 let signer: ((claims: Record<string, unknown>, expiresIn?: string) => Promise<string>) | null =
   null;
 
-async function resolveJwks(env: AuthEnv): Promise<JwksGetter | null> {
-  if (jwks) return jwks;
+function resolveJwks(env: AuthEnv): ResultAsync<JwksGetter, string> {
+  if (jwks) return okAsync(jwks);
 
   if (env.EDGEPOD_JWKS_URL) {
     jwks = createRemoteJWKSet(new URL(env.EDGEPOD_JWKS_URL));
-    return jwks;
+    return okAsync(jwks);
   }
 
-  if (env.ASSETS) {
-    const res = await env.ASSETS.fetch("http://localhost/.well-known/jwks.json");
-    if (!res.ok) return null;
-    const json = (await res.json()) as JSONWebKeySet;
-    jwks = createLocalJWKSet(json);
-    return jwks;
+  if (!env.ASSETS) {
+    return errAsync("No JWKS URL or local JWKS configured");
   }
 
-  return null;
+  return ResultAsync.fromPromise(
+    env.ASSETS.fetch("http://localhost/.well-known/jwks.json"),
+    () => "Failed to fetch local JWKS",
+  ).andThen((res) => {
+    if (!res.ok) {
+      return errAsync(`Failed to fetch local JWKS: ${res.status}`);
+    }
+    return ResultAsync.fromPromise(
+      res.json() as Promise<JSONWebKeySet>,
+      () => "Failed to parse local JWKS JSON",
+    ).andThen((json) => {
+      jwks = createLocalJWKSet(json);
+      return okAsync(jwks);
+    });
+  });
 }
 
-async function resolveSigningKey(env: AuthEnv): Promise<CryptoKey | null> {
-  if (signingKey) return signingKey;
-  if (!env.EDGEPOD_JWT_PRIVATE_KEY) return null;
+function resolveSigningKey(env: AuthEnv): ResultAsync<CryptoKey, string> {
+  if (signingKey) return okAsync(signingKey);
+  if (!env.EDGEPOD_JWT_PRIVATE_KEY) return errAsync("No JWT private key configured");
 
-  const jwk = JSON.parse(env.EDGEPOD_JWT_PRIVATE_KEY) as JsonWebKey;
-  signingKey = (await importJWK(jwk, "ES256")) as CryptoKey;
-  return signingKey;
+  let jwk: JsonWebKey;
+  try {
+    jwk = JSON.parse(env.EDGEPOD_JWT_PRIVATE_KEY) as JsonWebKey;
+  } catch {
+    return errAsync("Malformed JWT private key JSON");
+  }
+
+  return ResultAsync.fromPromise(importJWK(jwk, "ES256"), () => "Failed to import signing key").map(
+    (key) => {
+      signingKey = key as CryptoKey;
+      return signingKey;
+    },
+  );
 }
 
-export async function verifyJwt(
+export function verifyJwt(
   token: string,
   env: AuthEnv,
   options?: JWTClaimVerificationOptions,
-): Promise<JWTPayload | null> {
-  const keyGetter = await resolveJwks(env);
-  if (!keyGetter) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, keyGetter, options);
-    return payload;
-  } catch {
-    return null;
-  }
+): ResultAsync<JWTPayload, string> {
+  return resolveJwks(env).andThen((keyGetter) => {
+    return ResultAsync.fromPromise(jwtVerify(token, keyGetter, options), (e) => {
+      if (e instanceof Error) {
+        if (e.message.includes("expired")) return "Token expired";
+        if (e.message.includes("signature")) return "Invalid signature";
+        return e.message;
+      }
+      return "Invalid token";
+    }).map(({ payload }) => payload);
+  });
 }
 
-export async function initJwtSigner(env: AuthEnv): Promise<void> {
-  if (signer !== null) return;
-  const key = await resolveSigningKey(env);
-  if (!key) return;
+export function initJwtSigner(env: AuthEnv): ResultAsync<void, string> {
+  if (signer !== null) return okAsync(undefined);
 
-  signer = (claims, expiresIn = "1h") =>
-    new SignJWT(claims)
-      .setProtectedHeader({ alg: "ES256", kid: "edgepod-local-key" })
-      .setIssuedAt()
-      .setExpirationTime(expiresIn)
-      .sign(key);
+  return resolveSigningKey(env).andThen((key) => {
+    signer = (claims, expiresIn = "1h") =>
+      new SignJWT(claims)
+        .setProtectedHeader({ alg: "ES256", kid: "edgepod-local-key" })
+        .setIssuedAt()
+        .setExpirationTime(expiresIn)
+        .sign(key);
+    return okAsync(undefined);
+  });
 }
 
 export function getJwtSigner(): typeof signer {

@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
+import { Result, ok, err } from "neverthrow";
 import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
 import { initJwtSigner, getJwtSigner } from "./auth";
@@ -44,7 +45,10 @@ export class BaseEdgePodEngine extends DurableObject {
       this.cascadeGraph = buildCascadeGraph(this.schema);
 
       await initLogger();
-      await initJwtSigner(this.env as any);
+      await initJwtSigner(this.env as any).match(
+        () => {},
+        (e) => console.warn("[EdgePod] JWT signer init failed:", e),
+      );
 
       if (this.migrations) {
         await migrate(this.rawDb, this.migrations as any);
@@ -102,12 +106,16 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest): Promise<RpcResponse> {
+  async executeRpc(
+    functionName: string,
+    args: any,
+    rpcCtx: RpcRequest,
+  ): Promise<Result<RpcResponse, string>> {
     const { headers, user, traceId, reactive } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
-    if (!handler) throw new Error(`NOT_FOUND: Function "${functionName}" not found.`);
+    if (!handler) return err(`NOT_FOUND: Function "${functionName}" not found.`);
 
     // session variable store
     const variableStore = new Map();
@@ -157,24 +165,22 @@ export class BaseEdgePodEngine extends DurableObject {
     };
 
     // Execute the user's code
-    let data: Awaited<ReturnType<typeof handler>>;
     try {
-      data = await handler(edgepodCtx, args);
+      const data = await handler(edgepodCtx, args);
+
+      if (tablesWritten.size > 0) {
+        const hashedTableNames = hashMetaTableNames(Array.from(tablesWritten));
+        this.broadcastInvalidations(hashedTableNames);
+      }
+
+      return ok({
+        data,
+        meta: { read: [...tablesRead], changed: [...tablesWritten] },
+        warnings,
+      });
     } catch (e) {
-      // Re-throw as a plain Error so the DO runtime doesn't swallow the message
-      throw new Error(e instanceof Error ? e.message : String(e), { cause: e });
+      return err(e instanceof Error ? e.message : String(e));
     }
-
-    if (tablesWritten.size > 0) {
-      const hashedTableNames = hashMetaTableNames(Array.from(tablesWritten));
-      this.broadcastInvalidations(hashedTableNames);
-    }
-
-    return {
-      data,
-      meta: { read: [...tablesRead], changed: [...tablesWritten] },
-      warnings,
-    };
   }
 
   private restoreActiveSessions() {

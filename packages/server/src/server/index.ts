@@ -1,8 +1,9 @@
 import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
-import type { RpcRequest, RpcResponse } from "../types";
+import type { RpcRequest } from "../types";
 import { verifyJwt } from "./auth";
 import { hashMetaTableNames } from "../tools/hashTableName";
+import { ResultAsync } from "neverthrow";
 
 const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
 
@@ -22,7 +23,11 @@ export type DataLocationOptions = {
 
 // Minimal stub interface to avoid deep type instantiation through DurableObjectStub<BaseEdgePodEngine>
 type EdgePodStub = {
-  executeRpc(functionName: string, args: unknown, rpcCtx: RpcRequest): Promise<RpcResponse>;
+  executeRpc(
+    functionName: string,
+    args: unknown,
+    rpcCtx: RpcRequest,
+  ): ReturnType<BaseEdgePodEngine["executeRpc"]>;
   fetch(request: Request): Promise<Response>;
 };
 
@@ -45,13 +50,13 @@ export const edgePodFetch = async (
   let userPayload: Record<string, unknown> | null = null;
 
   if (authHeader?.startsWith("Bearer ")) {
-    const payload = await verifyJwt(authHeader.slice(7), env);
-    if (!payload)
+    const result = await verifyJwt(authHeader.slice(7), env);
+    if (result.isErr())
       return new Response("Unauthorized", {
         status: 401,
         headers: serverHeader,
       });
-    userPayload = payload as Record<string, unknown>;
+    userPayload = result.value as Record<string, unknown>;
   }
 
   const namespace = options?.jurisdiction
@@ -67,54 +72,65 @@ export const edgePodFetch = async (
   if (url.pathname.startsWith("/rpc/")) {
     // Remove first 5 characters (/rpc/) to extract function name, e.g. /rpc/myFunction -> myFunction
     const functionName = url.pathname.slice(5);
-    let args = {};
 
-    try {
+    const parseArgs = (): ResultAsync<unknown, string> => {
       if (request.method === "POST") {
-        args = await request.json();
-      } else if (request.method === "GET") {
+        return ResultAsync.fromPromise(request.json(), () => "Invalid request body.");
+      }
+      if (request.method === "GET") {
         const queryArgs = url.searchParams.get("args");
         if (queryArgs) {
-          args = JSON.parse(decodeURIComponent(queryArgs));
+          return ResultAsync.fromPromise(
+            Promise.resolve(JSON.parse(decodeURIComponent(queryArgs))),
+            () => "Invalid request body.",
+          );
         }
-      } else {
-        return new Response("Method Not Allowed", {
-          status: 405,
-          headers: serverHeader,
-        });
+        return ResultAsync.fromPromise(Promise.resolve({}), () => "unreachable");
       }
-    } catch {
+      return ResultAsync.fromPromise(Promise.reject(new Error("unreachable")), () => "unreachable");
+    };
+
+    if (request.method !== "POST" && request.method !== "GET") {
+      return new Response("Method Not Allowed", {
+        status: 405,
+        headers: serverHeader,
+      });
+    }
+
+    const argsResult = await parseArgs();
+    if (argsResult.isErr()) {
       return Response.json(
-        { success: false, error: "Invalid request body." },
+        { success: false, error: argsResult.error },
         { status: 400, headers: serverHeader },
       );
     }
 
-    try {
-      const traceId = crypto.randomUUID();
-      const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
-      const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
-      const { data, meta, warnings } = await stub.executeRpc(functionName, args, {
-        headers,
-        user: userPayload,
-        traceId,
-        reactive,
-      });
+    const traceId = crypto.randomUUID();
+    const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
+    const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
+    const result = await stub.executeRpc(functionName, argsResult.value, {
+      headers,
+      user: userPayload,
+      traceId,
+      reactive,
+    });
 
-      return Response.json(
-        {
-          success: true,
-          data,
-          _meta: { t: hashMetaTableNames(meta.read) },
-          ...(warnings.length > 0 ? { warnings } : {}),
-        },
-        { headers: serverHeader },
-      );
-    } catch (error) {
-      const message = (error as Error).message;
-      const status = message.startsWith("NOT_FOUND:") ? 404 : 500;
-      return Response.json({ success: false, error: message }, { status, headers: serverHeader });
-    }
+    return result.match(
+      ({ data, meta, warnings }) =>
+        Response.json(
+          {
+            success: true,
+            data,
+            _meta: { t: hashMetaTableNames(meta.read) },
+            ...(warnings.length > 0 ? { warnings } : {}),
+          },
+          { headers: serverHeader },
+        ),
+      (message) => {
+        const status = message.startsWith("NOT_FOUND:") ? 404 : 500;
+        return Response.json({ success: false, error: message }, { status, headers: serverHeader });
+      },
+    );
   }
 
   // WebSocket Upgrades and handler

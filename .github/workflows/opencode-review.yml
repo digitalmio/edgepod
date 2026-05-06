@@ -1,0 +1,44 @@
+name: OpenCode PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: opencode/kimi-k2.6
+          use_github_token: true
+          prompt: |
+            Review this pull request as a senior engineer. Focus on:
+
+            1. Bugs & correctness — logic errors, edge cases, race conditions
+            2. Security — injection, auth bypass, data exposure, unsafe patterns
+            3. Performance — unnecessary re-renders, N+1 queries, inefficient algorithms
+            4. TypeScript — proper typing, avoid `any`, type safety, null handling
+            5. React best practices — hooks rules, memoization, component structure
+            6. Code clarity — naming, readability, unnecessary complexity
+
+            Guidelines:
+            - Comment only on real issues, not style preferences
+            - Be specific: reference exact files and line numbers
+            - Suggest concrete fixes with code examples
+            - Praise good patterns when you see them
+            - Skip trivial issues (typos in comments, formatting)
+            - Flag anything that blocks merging
+
+            If the PR looks solid overall, say so. Be concise.
