@@ -8,9 +8,9 @@ export function createMutationProxy(
   tableName?: string,
   tablesWritten?: Set<string>,
   cascadeGraph?: Map<string, Set<string>>,
-): Record<string, unknown> {
-  return new Proxy(builder, {
-    get(target, prop: string) {
+): unknown {
+  return new Proxy(builder as any, {
+    get(target: any, prop: string) {
       if (prop === "where") {
         return function (...whereArgs: unknown[]) {
           const next = target.where.apply(target, whereArgs);

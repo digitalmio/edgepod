@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Fetcher } from "@cloudflare/workers-types";
 
 vi.mock("jose", async (importOriginal) => {
   const actual = await importOriginal<typeof import("jose")>();
@@ -106,15 +107,15 @@ describe("verifyJwt", () => {
     const { createLocalJWKSet } = await import("jose");
 
     const jwksJson = { keys: [{ kty: "EC", crv: "P-256", x: "test", y: "test" }] };
-    const mockAssets = {
+    const mockAssets: Fetcher = {
       fetch: vi.fn(async () => ({
         ok: true,
         json: async () => jwksJson,
-      })),
+      })) as any,
     };
 
     await verifyJwt("valid-token", {
-      ASSETS: mockAssets as unknown,
+      ASSETS: mockAssets,
     });
 
     expect(mockAssets.fetch).toHaveBeenCalledWith("http://localhost/.well-known/jwks.json");
@@ -152,15 +153,15 @@ describe("verifyJwt", () => {
   it("returns error when local JWKS fetch fails", async () => {
     const { verifyJwt } = await import("./auth");
 
-    const mockAssets = {
+    const mockAssets: Fetcher = {
       fetch: vi.fn(async () => ({
         ok: false,
         status: 404,
-      })),
+      })) as any,
     };
 
     const result = await verifyJwt("valid-token", {
-      ASSETS: mockAssets as unknown,
+      ASSETS: mockAssets,
     });
 
     expect(result.isErr()).toBe(true);
@@ -172,17 +173,17 @@ describe("verifyJwt", () => {
   it("returns error when local JWKS JSON is malformed", async () => {
     const { verifyJwt } = await import("./auth");
 
-    const mockAssets = {
+    const mockAssets: Fetcher = {
       fetch: vi.fn(async () => ({
         ok: true,
         json: async () => {
           throw new SyntaxError("Unexpected token");
         },
-      })),
+      })) as any,
     };
 
     const result = await verifyJwt("valid-token", {
-      ASSETS: mockAssets as unknown,
+      ASSETS: mockAssets,
     });
 
     expect(result.isErr()).toBe(true);

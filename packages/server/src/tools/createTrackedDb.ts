@@ -12,9 +12,9 @@ function createInsertProxy(
   maxLimit: number,
   tableName: string,
   tablesWritten: Set<string>,
-) {
-  return new Proxy(builder, {
-    get(builderTarget, builderProp: string) {
+): unknown {
+  return new Proxy(builder as any, {
+    get(builderTarget: any, builderProp: string) {
       if (builderProp === "values") {
         return function (rows: unknown[]) {
           if (Array.isArray(rows) && rows.length > maxLimit) {
@@ -37,9 +37,9 @@ function createUpdateBuilderProxy(
   warnings: string[],
   tableName: string,
   tablesWritten: Set<string>,
-) {
-  return new Proxy(builder, {
-    get(builderTarget, builderProp: string) {
+): unknown {
+  return new Proxy(builder as any, {
+    get(builderTarget: any, builderProp: string) {
       if (builderProp === "set") {
         return function (...setArgs: unknown[]) {
           const base = builderTarget.set.apply(builderTarget, setArgs);
@@ -79,9 +79,9 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
   tablesWritten: Set<string>,
   cascadeGraph: Map<string, Set<string>>,
   warnings: string[],
-) {
-  return new Proxy(realDb, {
-    get(target, prop: string) {
+): unknown {
+  return new Proxy(realDb as any, {
+    get(target: any, prop: string) {
       if (FORBIDDEN_RAW_METHODS.includes(prop)) {
         throw new Error(
           `[EdgePod] Raw SQL via 'ctx.db.${prop}()' is blocked. Use ctx.db.select()/ctx.db.update(). ` +
@@ -91,33 +91,24 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
 
       if (prop === "insert") {
         return function (table: unknown, ...restArgs: unknown[]) {
-          const tableName = getTableName(table) ?? "unknown";
-          const builder = (target as Record<string, unknown>)[prop].apply(target, [
-            table,
-            ...restArgs,
-          ]);
+          const tableName = getTableName(table as any) ?? "unknown";
+          const builder = target[prop].apply(target, [table, ...restArgs]);
           return createInsertProxy(builder, MAX_LIMIT, tableName, tablesWritten);
         };
       }
 
       if (prop === "update") {
         return function (table: unknown, ...restArgs: unknown[]) {
-          const tableName = getTableName(table) ?? "unknown";
-          const builder = (target as Record<string, unknown>)[prop].apply(target, [
-            table,
-            ...restArgs,
-          ]);
+          const tableName = getTableName(table as any) ?? "unknown";
+          const builder = target[prop].apply(target, [table, ...restArgs]);
           return createUpdateBuilderProxy(builder, warnings, tableName, tablesWritten);
         };
       }
 
       if (prop === "delete") {
         return function (table: unknown, ...restArgs: unknown[]) {
-          const tableName = getTableName(table) ?? "unknown";
-          const builder = (target as Record<string, unknown>)[prop].apply(target, [
-            table,
-            ...restArgs,
-          ]);
+          const tableName = getTableName(table as any) ?? "unknown";
+          const builder = target[prop].apply(target, [table, ...restArgs]);
           return createMutationProxy(
             builder,
             warnings,
@@ -131,16 +122,16 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       }
 
       if (prop === "query") {
-        const queryObject = (target as Record<string, unknown>).query;
+        const queryObject = target.query;
         if (!queryObject) return undefined;
         return new Proxy(queryObject, {
-          get(queryTarget, tableProp: string) {
+          get(queryTarget: any, tableProp: string) {
             const session = activeSessions.get(sessionId);
             if (session) session.listeningToTables.add(tableProp);
             tablesRead.add(tableProp);
             const tableApi = queryTarget[tableProp];
             return new Proxy(tableApi, {
-              get(tableTarget, method: string) {
+              get(tableTarget: any, method: string) {
                 if (method === "findMany") {
                   return function (opts: Record<string, unknown> = {}) {
                     const limit =
@@ -165,7 +156,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       if (prop === "select" || prop === "selectDistinct") {
         return function (...args: unknown[]) {
           return createSelectProxy(
-            (target as Record<string, unknown>)[prop].apply(target, args),
+            target[prop].apply(target, args),
             sessionId,
             activeSessions,
             tablesRead,
@@ -175,7 +166,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
         };
       }
 
-      const value = (target as Record<string, unknown>)[prop];
+      const value = target[prop];
       return typeof value === "function" ? value.bind(target) : value;
     },
   });

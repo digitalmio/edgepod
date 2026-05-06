@@ -12,9 +12,9 @@ export function createSelectProxy(
   warnings: string[],
   maxLimit: number,
   state = { limitSet: false },
-): Record<string, unknown> {
-  return new Proxy(builder, {
-    get(target, prop: string) {
+): unknown {
+  return new Proxy(builder as any, {
+    get(target: any, prop: string) {
       if (prop === "limit") {
         return function (n: number) {
           if (n > maxLimit) {
@@ -37,14 +37,14 @@ export function createSelectProxy(
           const finalBuilder = state.limitSet ? target : target.limit(maxLimit);
           return finalBuilder.then((result: unknown[]) => {
             checkResultWarnings(result, warnings, maxLimit);
-            return resolve(result);
+            return (resolve as (v: unknown) => void)(result);
           }, reject);
         };
       }
 
       if (JOIN_METHODS.includes(prop)) {
         return function (table: unknown, ...restArgs: unknown[]) {
-          const tableName = getTableName(table) ?? "unknown";
+          const tableName = getTableName(table as any) ?? "unknown";
           const session = activeSessions.get(sessionId);
           if (tableName !== "unknown") {
             if (session) session.listeningToTables.add(tableName);
