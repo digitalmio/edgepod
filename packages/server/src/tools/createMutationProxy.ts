@@ -1,3 +1,5 @@
+import { recordMutationWithCascades } from "./recordMutation";
+
 const EXECUTION_METHODS = ["run", "all", "get", "values", "execute"];
 
 export function createMutationProxy(
@@ -28,6 +30,7 @@ export function createMutationProxy(
 
       if (prop === "withoutWhere") {
         return function () {
+          warnings.push(`[EdgePod] Unfiltered ${mutationType} executed via .withoutWhere().`);
           const next = target.withoutWhere.apply(target);
           return createMutationProxy(
             next,
@@ -77,19 +80,4 @@ export function createMutationProxy(
       return value;
     },
   });
-}
-
-function recordMutationWithCascades(
-  tableName: string,
-  tablesWritten: Set<string>,
-  cascadeGraph: Map<string, Set<string>>,
-) {
-  if (tablesWritten.has(tableName)) return;
-  tablesWritten.add(tableName);
-  const children = cascadeGraph.get(tableName);
-  if (children) {
-    for (const child of children) {
-      recordMutationWithCascades(child, tablesWritten, cascadeGraph);
-    }
-  }
 }

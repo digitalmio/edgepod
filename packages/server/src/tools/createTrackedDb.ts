@@ -3,6 +3,7 @@ import { RawDrizzleDb, EdgePodSessionMap } from "../types";
 import { checkResultWarnings } from "./checkResultWarnings";
 import { createSelectProxy } from "./createSelectProxy";
 import { createMutationProxy } from "./createMutationProxy";
+import { recordMutationWithCascades } from "./recordMutation";
 
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
 const MAX_LIMIT = 1000;
@@ -22,14 +23,37 @@ function createInsertProxy(
               `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
             );
           }
-          recordMutationWithCascades(tableName, tablesWritten, new Map());
-          return builderTarget.values(rows);
+          const result = builderTarget.values(rows);
+          return wrapInsertResult(result, tableName, tablesWritten);
         };
       }
       const value = builderTarget[builderProp];
       return typeof value === "function" ? value.bind(builderTarget) : value;
     },
   });
+}
+
+function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<string>) {
+  if (result && typeof result === "object" && "then" in result) {
+    return new Proxy(result, {
+      get(resultTarget: any, prop: string) {
+        if (prop === "then") {
+          return function (resolve: any, reject: any) {
+            return resultTarget.then(
+              (value: any) => {
+                recordMutationWithCascades(tableName, tablesWritten, new Map());
+                return resolve(value);
+              },
+              (err: any) => reject(err),
+            );
+          };
+        }
+        const value = resultTarget[prop];
+        return typeof value === "function" ? value.bind(resultTarget) : value;
+      },
+    });
+  }
+  return result;
 }
 
 function createUpdateBuilderProxy(
@@ -50,21 +74,6 @@ function createUpdateBuilderProxy(
       return typeof value === "function" ? value.bind(builderTarget) : value;
     },
   });
-}
-
-function recordMutationWithCascades(
-  tableName: string,
-  tablesWritten: Set<string>,
-  cascadeGraph: Map<string, Set<string>>,
-) {
-  if (tablesWritten.has(tableName)) return;
-  tablesWritten.add(tableName);
-  const children = cascadeGraph.get(tableName);
-  if (children) {
-    for (const child of children) {
-      recordMutationWithCascades(child, tablesWritten, cascadeGraph);
-    }
-  }
 }
 
 /**
@@ -130,6 +139,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
             if (session) session.listeningToTables.add(tableProp);
             tablesRead.add(tableProp);
             const tableApi = queryTarget[tableProp];
+            if (!tableApi) return undefined;
             return new Proxy(tableApi, {
               get(tableTarget: any, method: string) {
                 if (method === "findMany") {
@@ -139,6 +149,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
                     if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
                       warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
                     }
+                    trackWithRelations(opts, tablesRead, activeSessions, sessionId);
                     return tableTarget.findMany({ ...opts, limit }).then((result: unknown[]) => {
                       checkResultWarnings(result, warnings, MAX_LIMIT);
                       return result;
@@ -170,4 +181,19 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
+}
+
+function trackWithRelations(
+  opts: Record<string, unknown>,
+  tablesRead: Set<string>,
+  activeSessions: EdgePodSessionMap,
+  sessionId: string,
+) {
+  const withOpt = opts.with as Record<string, unknown> | undefined;
+  if (!withOpt) return;
+  for (const relation of Object.keys(withOpt)) {
+    const session = activeSessions.get(sessionId);
+    if (session) session.listeningToTables.add(relation);
+    tablesRead.add(relation);
+  }
 }
