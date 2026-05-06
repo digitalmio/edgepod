@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "packages/client/**"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/client-test.yml"
   pull_request:
     paths:
       - "packages/client/**"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/client-test.yml"
 
 jobs:
   test-client:
