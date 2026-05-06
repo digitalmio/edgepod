@@ -7,6 +7,51 @@ import { createMutationProxy } from "./createMutationProxy";
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
 const MAX_LIMIT = 1000;
 
+function createInsertProxy(
+  builder: Record<string, unknown>,
+  maxLimit: number,
+  tableName: string,
+  tablesWritten: Set<string>,
+) {
+  return new Proxy(builder, {
+    get(builderTarget, builderProp: string) {
+      if (builderProp === "values") {
+        return function (rows: unknown[]) {
+          if (Array.isArray(rows) && rows.length > maxLimit) {
+            throw new Error(
+              `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
+            );
+          }
+          recordMutationWithCascades(tableName, tablesWritten, new Map());
+          return builderTarget.values(rows);
+        };
+      }
+      const value = builderTarget[builderProp];
+      return typeof value === "function" ? value.bind(builderTarget) : value;
+    },
+  });
+}
+
+function createUpdateBuilderProxy(
+  builder: Record<string, unknown>,
+  warnings: string[],
+  tableName: string,
+  tablesWritten: Set<string>,
+) {
+  return new Proxy(builder, {
+    get(builderTarget, builderProp: string) {
+      if (builderProp === "set") {
+        return function (...setArgs: unknown[]) {
+          const base = builderTarget.set.apply(builderTarget, setArgs);
+          return createMutationProxy(base, warnings, "update", undefined, tableName, tablesWritten);
+        };
+      }
+      const value = builderTarget[builderProp];
+      return typeof value === "function" ? value.bind(builderTarget) : value;
+    },
+  });
+}
+
 function recordMutationWithCascades(
   tableName: string,
   tablesWritten: Set<string>,
@@ -20,40 +65,6 @@ function recordMutationWithCascades(
       recordMutationWithCascades(child, tablesWritten, cascadeGraph);
     }
   }
-}
-
-function createInsertProxy(builder: any, maxLimit: number) {
-  return new Proxy(builder, {
-    get(builderTarget, builderProp: string) {
-      if (builderProp === "values") {
-        return function (rows: any) {
-          if (Array.isArray(rows) && rows.length > maxLimit) {
-            throw new Error(
-              `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
-            );
-          }
-          return builderTarget.values(rows);
-        };
-      }
-      const value = builderTarget[builderProp];
-      return typeof value === "function" ? value.bind(builderTarget) : value;
-    },
-  });
-}
-
-function createUpdateBuilderProxy(builder: any, warnings: string[]) {
-  return new Proxy(builder, {
-    get(builderTarget, builderProp: string) {
-      if (builderProp === "set") {
-        return function (...setArgs: any[]) {
-          const base = builderTarget.set.apply(builderTarget, setArgs);
-          return createMutationProxy(base, warnings, "update");
-        };
-      }
-      const value = builderTarget[builderProp];
-      return typeof value === "function" ? value.bind(builderTarget) : value;
-    },
-  });
 }
 
 /**
@@ -79,40 +90,48 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       }
 
       if (prop === "insert") {
-        return function (table: any, ...restArgs: any[]) {
+        return function (table: unknown, ...restArgs: unknown[]) {
           const tableName = getTableName(table) ?? "unknown";
-          if (tableName !== "unknown") {
-            recordMutationWithCascades(tableName, tablesWritten, new Map());
-          }
-          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
-          return createInsertProxy(builder, MAX_LIMIT);
+          const builder = (target as Record<string, unknown>)[prop].apply(target, [
+            table,
+            ...restArgs,
+          ]);
+          return createInsertProxy(builder, MAX_LIMIT, tableName, tablesWritten);
         };
       }
 
       if (prop === "update") {
-        return function (table: any, ...restArgs: any[]) {
+        return function (table: unknown, ...restArgs: unknown[]) {
           const tableName = getTableName(table) ?? "unknown";
-          if (tableName !== "unknown") {
-            recordMutationWithCascades(tableName, tablesWritten, new Map());
-          }
-          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
-          return createUpdateBuilderProxy(builder, warnings);
+          const builder = (target as Record<string, unknown>)[prop].apply(target, [
+            table,
+            ...restArgs,
+          ]);
+          return createUpdateBuilderProxy(builder, warnings, tableName, tablesWritten);
         };
       }
 
       if (prop === "delete") {
-        return function (table: any, ...restArgs: any[]) {
+        return function (table: unknown, ...restArgs: unknown[]) {
           const tableName = getTableName(table) ?? "unknown";
-          if (tableName !== "unknown") {
-            recordMutationWithCascades(tableName, tablesWritten, cascadeGraph);
-          }
-          const builder = (target as any)[prop].apply(target, [table, ...restArgs]);
-          return createMutationProxy(builder, warnings, "delete");
+          const builder = (target as Record<string, unknown>)[prop].apply(target, [
+            table,
+            ...restArgs,
+          ]);
+          return createMutationProxy(
+            builder,
+            warnings,
+            "delete",
+            undefined,
+            tableName,
+            tablesWritten,
+            cascadeGraph,
+          );
         };
       }
 
       if (prop === "query") {
-        const queryObject = (target as any).query;
+        const queryObject = (target as Record<string, unknown>).query;
         if (!queryObject) return undefined;
         return new Proxy(queryObject, {
           get(queryTarget, tableProp: string) {
@@ -123,13 +142,13 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
             return new Proxy(tableApi, {
               get(tableTarget, method: string) {
                 if (method === "findMany") {
-                  return function (opts: Record<string, any> = {}) {
+                  return function (opts: Record<string, unknown> = {}) {
                     const limit =
                       typeof opts.limit === "number" ? Math.min(opts.limit, MAX_LIMIT) : MAX_LIMIT;
                     if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
                       warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
                     }
-                    return tableTarget.findMany({ ...opts, limit }).then((result: any[]) => {
+                    return tableTarget.findMany({ ...opts, limit }).then((result: unknown[]) => {
                       checkResultWarnings(result, warnings, MAX_LIMIT);
                       return result;
                     });
@@ -144,9 +163,9 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       }
 
       if (prop === "select" || prop === "selectDistinct") {
-        return function (...args: any[]) {
+        return function (...args: unknown[]) {
           return createSelectProxy(
-            (target as any)[prop].apply(target, args),
+            (target as Record<string, unknown>)[prop].apply(target, args),
             sessionId,
             activeSessions,
             tablesRead,
@@ -156,7 +175,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
         };
       }
 
-      const value = (target as any)[prop];
+      const value = (target as Record<string, unknown>)[prop];
       return typeof value === "function" ? value.bind(target) : value;
     },
   });

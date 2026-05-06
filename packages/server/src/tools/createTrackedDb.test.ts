@@ -41,15 +41,24 @@ function createDeleteBuilder() {
   };
 }
 
+function createInsertBuilder() {
+  const builder: Record<string, unknown> = {
+    values: vi.fn(function () {
+      return builder;
+    }),
+    // oxlint-disable-next-line unicorn/no-thenable
+    then: vi.fn(function (resolve: (v: unknown) => void, reject: (e: unknown) => void) {
+      return Promise.resolve({ inserted: true }).then(resolve, reject);
+    }),
+  };
+  return builder;
+}
+
 function createMockDb() {
   const db: Record<string, unknown> = {
     select: vi.fn(() => createSelectBuilder()),
     selectDistinct: vi.fn(() => createSelectBuilder()),
-    insert: vi.fn((_table: unknown) => ({
-      values: vi.fn(function () {
-        return Promise.resolve({ inserted: true });
-      }),
-    })),
+    insert: vi.fn((_table: unknown) => createInsertBuilder()),
     update: vi.fn((_table: unknown) => createUpdateBuilder()),
     delete: vi.fn((_table: unknown) => createDeleteBuilder()),
     query: {

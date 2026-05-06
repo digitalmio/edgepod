@@ -1,20 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("jose", () => {
+vi.mock("jose", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("jose")>();
+
   const mockJwtVerify = vi.fn(async (token: string, _keyGetter: unknown, _options?: unknown) => {
     if (token === "expired-token") {
-      const err = new Error("jwt expired");
-      throw err;
+      throw new actual.errors.JWTExpired("jwt expired");
     }
     if (token === "invalid-signature") {
-      const err = new Error("signature verification failed");
-      throw err;
+      throw new actual.errors.JWSSignatureVerificationFailed("signature verification failed");
     }
     if (token === "valid-token") {
       return { payload: { sub: "user-123", email: "test@example.com" } };
     }
-    const err = new Error("invalid token");
-    throw err;
+    throw new Error("invalid token");
   });
 
   const mockCreateRemoteJWKSet = vi.fn(() => mockJwtVerify);
@@ -35,6 +34,7 @@ vi.mock("jose", () => {
   });
 
   return {
+    ...actual,
     createRemoteJWKSet: mockCreateRemoteJWKSet,
     createLocalJWKSet: mockCreateLocalJWKSet,
     importJWK: mockImportJWK,

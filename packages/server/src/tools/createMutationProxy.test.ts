@@ -26,7 +26,10 @@ function createMockBuilder() {
     }),
     returning: vi.fn(function () {
       const inner = createMockBuilder();
-      inner.__thenable = true;
+      // oxlint-disable-next-line unicorn/no-thenable
+      inner.then = vi.fn(function (resolve: (v: unknown) => void, reject: (e: unknown) => void) {
+        return Promise.resolve({ changes: 1 }).then(resolve, reject);
+      });
       return inner;
     }),
   };
