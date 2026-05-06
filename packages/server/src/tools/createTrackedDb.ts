@@ -164,7 +164,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
                   return function (opts: Record<string, unknown> = {}) {
                     const limit =
                       typeof opts.limit === "number" && Number.isFinite(opts.limit)
-                        ? Math.min(opts.limit, MAX_LIMIT)
+                        ? Math.max(0, Math.min(opts.limit, MAX_LIMIT))
                         : MAX_LIMIT;
                     if (typeof opts.limit === "number" && opts.limit > MAX_LIMIT) {
                       warnings.push(`Query limit of ${opts.limit} overridden to ${MAX_LIMIT}.`);
@@ -174,6 +174,12 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
                       checkResultWarnings(result, warnings, MAX_LIMIT);
                       return result;
                     });
+                  };
+                }
+                if (method === "findFirst") {
+                  return function (opts: Record<string, unknown> = {}) {
+                    trackWithRelations(opts, tablesRead, activeSessions, sessionId);
+                    return tableTarget.findFirst(opts);
                   };
                 }
                 const value = tableTarget[method];

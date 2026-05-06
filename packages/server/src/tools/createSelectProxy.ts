@@ -20,8 +20,9 @@ export function createSelectProxy(
           if (n > maxLimit) {
             warnings.push(`Query limit of ${n} overridden to ${maxLimit}.`);
           }
+          const clamped = Math.max(0, Math.min(n, maxLimit));
           return createSelectProxy(
-            target.limit(Math.min(n, maxLimit)),
+            target.limit(clamped),
             sessionId,
             activeSessions,
             tablesRead,
