@@ -21,12 +21,15 @@ export function createMutationProxy(
       },
     },
     onExecute: (target, prop, args, proxyState) => {
+      if (prop === "prepare") {
+        throw new Error(`[EdgePod] .prepare() is not supported for ${mutationType}s.`);
+      }
       if (!proxyState.whereSet && !proxyState.withoutWhereSet) {
         throw new Error(
           `[EdgePod] ${mutationType.toUpperCase()} without WHERE is blocked. If intentional, chain .withoutWhere().`,
         );
       }
-      if (prop !== "prepare" && tableName && tablesWritten) {
+      if (tableName && tableName !== "unknown" && tablesWritten) {
         recordMutationWithCascades(tableName, tablesWritten, cascadeGraph ?? new Map());
       }
       return target[prop](...args);

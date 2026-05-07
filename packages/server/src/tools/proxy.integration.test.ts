@@ -169,10 +169,33 @@ describe("proxy integration — insert chaining", () => {
 });
 
 describe("proxy integration — prepare", () => {
-  it(".prepare() returns prepared statement with limit enforced", () => {
+  it("blocks insert .prepare()", () => {
+    const { db } = setup();
+    expect(() => db.insert(users).values({ name: "test" }).prepare()).toThrow(
+      ".prepare() is not supported for inserts",
+    );
+  });
+
+  it("blocks update .prepare()", () => {
+    const { db } = setup();
+    expect(() =>
+      db.update(users).set({ name: "changed" }).where(eq(users.id, 1)).prepare(),
+    ).toThrow(".prepare() is not supported for updates");
+  });
+
+  it("blocks delete .prepare()", () => {
+    const { db } = setup();
+    expect(() => db.delete(users).where(eq(users.id, 1)).prepare()).toThrow(
+      ".prepare() is not supported for deletes",
+    );
+  });
+
+  it(".prepare() on select returns statement with limit enforced", async () => {
     const { db } = setup();
     const prepared = db.select().from(users).prepare();
     expect(typeof prepared.execute).toBe("function");
     expect(typeof prepared.all).toBe("function");
+    const result = await prepared.execute();
+    expect(Array.isArray(result)).toBe(true);
   });
 });

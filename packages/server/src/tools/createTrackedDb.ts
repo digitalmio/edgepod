@@ -28,7 +28,10 @@ function createInsertProxy(
       },
     },
     onExecute: (target, prop, args) => {
-      if (prop !== "prepare") {
+      if (prop === "prepare") {
+        throw new Error("[EdgePod] .prepare() is not supported for inserts.");
+      }
+      if (tableName !== "unknown") {
         recordMutationWithCascades(tableName, tablesWritten, new Map());
       }
       return target[prop](...args);
