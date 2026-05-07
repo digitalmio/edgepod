@@ -1,8 +1,20 @@
 import { getTableName } from "drizzle-orm";
 import { EdgePodSessionMap } from "../types";
 import { checkResultWarnings } from "./checkResultWarnings";
+import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
-const JOIN_METHODS = ["from", "leftJoin", "innerJoin", "rightJoin", "fullJoin"];
+function trackTable(
+  table: unknown,
+  tablesRead: Set<string>,
+  activeSessions: EdgePodSessionMap,
+  sessionId: string,
+) {
+  const tableName = getTableName(table as any) ?? "unknown";
+  if (tableName === "unknown") return;
+  const session = activeSessions.get(sessionId);
+  if (session) session.listeningToTables.add(tableName);
+  tablesRead.add(tableName);
+}
 
 export function createSelectProxy(
   builder: Record<string, unknown>,
@@ -11,78 +23,52 @@ export function createSelectProxy(
   tablesRead: Set<string>,
   warnings: string[],
   maxLimit: number,
-  state = { limitSet: false },
 ): unknown {
-  return new Proxy(builder as any, {
-    get(target: any, prop: string) {
-      if (prop === "limit") {
-        return function (n: number) {
-          if (n > maxLimit) {
-            warnings.push(`Query limit of ${n} overridden to ${maxLimit}.`);
-          }
-          const clamped = Math.max(0, Math.min(n, maxLimit));
-          return createSelectProxy(
-            target.limit(clamped),
-            sessionId,
-            activeSessions,
-            tablesRead,
-            warnings,
-            maxLimit,
-            { ...state, limitSet: true },
-          );
-        };
-      }
-
-      if (prop === "then") {
-        return function (resolve: unknown, reject: unknown) {
-          const finalBuilder = state.limitSet ? target : target.limit(maxLimit);
-          return finalBuilder.then((result: unknown[]) => {
-            checkResultWarnings(result, warnings, maxLimit);
-            return (resolve as (v: unknown) => void)(result);
-          }, reject);
-        };
-      }
-
-      if (JOIN_METHODS.includes(prop)) {
-        return function (table: unknown, ...restArgs: unknown[]) {
-          const tableName = getTableName(table as any) ?? "unknown";
-          const session = activeSessions.get(sessionId);
-          if (tableName !== "unknown") {
-            if (session) session.listeningToTables.add(tableName);
-            tablesRead.add(tableName);
-          }
-          return createSelectProxy(
-            target[prop](table, ...restArgs),
-            sessionId,
-            activeSessions,
-            tablesRead,
-            warnings,
-            maxLimit,
-            { ...state },
-          );
-        };
-      }
-
-      const value = target[prop];
-      if (typeof value === "function") {
-        return function (...args: unknown[]) {
-          const result = value.apply(target, args);
-          if (result && typeof result === "object" && "then" in result) {
-            return createSelectProxy(
-              result,
-              sessionId,
-              activeSessions,
-              tablesRead,
-              warnings,
-              maxLimit,
-              { ...state },
-            );
-          }
-          return result;
-        };
-      }
-
-      return value;
+  const config: ProxyConfig = {
+    onMethod: {
+      limit: (target, args, state, factory) => {
+        const n = args[0] as number;
+        if (n > maxLimit) {
+          warnings.push(`Query limit of ${n} overridden to ${maxLimit}.`);
+        }
+        const clamped = Math.max(0, Math.min(n, maxLimit));
+        return factory(target.limit(clamped), { ...state, limitSet: true });
+      },
+      from: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.from(...args), { ...state });
+      },
+      leftJoin: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.leftJoin(...args), { ...state });
+      },
+      innerJoin: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.innerJoin(...args), { ...state });
+      },
+      rightJoin: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.rightJoin(...args), { ...state });
+      },
+      fullJoin: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.fullJoin(...args), { ...state });
+      },
     },
-  });
+    onExecute: (target, prop, args, state) => {
+      const finalBuilder = state.limitSet ? target : target.limit(maxLimit);
+      if (prop === "then") {
+        const [resolve, reject] = args;
+        return finalBuilder.then((result: unknown[]) => {
+          checkResultWarnings(result, warnings, maxLimit);
+          return (resolve as (v: unknown) => void)(result);
+        }, reject);
+      }
+      const result = finalBuilder[prop](...args);
+      checkResultWarnings(result, warnings, maxLimit);
+      return result;
+    },
+  };
+
+  return createQueryProxy(builder, { limitSet: false }, config);
 }

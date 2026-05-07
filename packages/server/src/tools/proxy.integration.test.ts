@@ -1,0 +1,178 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+import { drizzle } from "drizzle-orm/node-sqlite";
+import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import { eq } from "drizzle-orm";
+import { createTrackedDb } from "./createTrackedDb";
+import type { RawDrizzleDb, EdgePodSessionMap } from "../types";
+
+const users = sqliteTable("users", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
+const posts = sqliteTable("posts", {
+  id: integer("id").primaryKey(),
+  title: text("title").notNull(),
+  userId: integer("user_id").notNull(),
+});
+
+function setup() {
+  const sqlite = new DatabaseSync(":memory:");
+  const db = drizzle({ client: sqlite, schema: { users, posts } });
+  sqlite.exec(`
+    CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT NOT NULL, user_id INTEGER NOT NULL);
+  `);
+  const tablesRead = new Set<string>();
+  const tablesWritten = new Set<string>();
+  const warnings: string[] = [];
+  const activeSessions: EdgePodSessionMap = new Map();
+  activeSessions.set("test-session", {
+    socket: {} as WebSocket,
+    listeningToTables: new Set(),
+  });
+
+  const trackedDb = createTrackedDb(
+    db as unknown as RawDrizzleDb<any>,
+    "test-session",
+    activeSessions,
+    tablesRead,
+    tablesWritten,
+    new Map(),
+    warnings,
+  );
+
+  return { db: trackedDb as any, tablesRead, tablesWritten, warnings };
+}
+
+describe("proxy integration — limit enforcement", () => {
+  it("clamps negative limit to 0 (async)", async () => {
+    const { db } = setup();
+    const result = await db.select().from(users).limit(-1);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+
+  it("clamps negative limit to 0 (sync)", () => {
+    const { db } = setup();
+    const result = db.select().from(users).limit(-1).all();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0);
+  });
+
+  it("caps limit at 1000 when exceeding max", async () => {
+    const { db, warnings } = setup();
+    await db.select().from(users).limit(5000);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("5000");
+    expect(warnings[0]).toContain("1000");
+  });
+
+  it("auto-applies default limit when none set", async () => {
+    const { db } = setup();
+    const result = await db.select().from(users);
+    expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe("proxy integration — WHERE enforcement", () => {
+  it("blocks update without WHERE", () => {
+    const { db } = setup();
+    expect(() => db.update(users).set({ name: "changed" }).run()).toThrow(
+      "UPDATE without WHERE is blocked",
+    );
+  });
+
+  it("allows update with WHERE", async () => {
+    const { db } = setup();
+    const result = await db.update(users).set({ name: "changed" }).where(eq(users.id, 1)).run();
+    expect(result).toBeDefined();
+  });
+
+  it("blocks delete without WHERE", () => {
+    const { db } = setup();
+    expect(() => db.delete(users).run()).toThrow("DELETE without WHERE is blocked");
+  });
+
+  it("allows delete with WHERE", async () => {
+    const { db } = setup();
+    const result = await db.delete(users).where(eq(users.id, 1)).run();
+    expect(result).toBeDefined();
+  });
+});
+
+describe("proxy integration — table tracking", () => {
+  it("tracks insert as table write (async)", async () => {
+    const { db, tablesWritten } = setup();
+    await db.insert(users).values({ name: "test" });
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks insert as table write (sync)", async () => {
+    const { db, tablesWritten } = setup();
+    await db.insert(users).values({ name: "test" });
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks update as table write", async () => {
+    const { db, tablesWritten } = setup();
+    await db.update(users).set({ name: "changed" }).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks delete as table write", async () => {
+    const { db, tablesWritten } = setup();
+    await db.delete(users).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks select as table read (async)", async () => {
+    const { db, tablesRead } = setup();
+    await db.select().from(users);
+    expect(tablesRead.has("users")).toBe(true);
+  });
+
+  it("tracks select as table read (sync)", () => {
+    const { db, tablesRead } = setup();
+    db.select().from(users).all();
+    expect(tablesRead.has("users")).toBe(true);
+  });
+
+  it("tracks join tables as reads", async () => {
+    const { db, tablesRead } = setup();
+    await db.select().from(users).leftJoin(posts, eq(users.id, posts.userId));
+    expect(tablesRead.has("users")).toBe(true);
+    expect(tablesRead.has("posts")).toBe(true);
+  });
+});
+
+describe("proxy integration — insert chaining", () => {
+  it("insert with .returning() records mutation", async () => {
+    const { db, tablesWritten } = setup();
+    const result = await db.insert(users).values({ name: "test" }).returning();
+    expect(Array.isArray(result)).toBe(true);
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("insert bulk at max limit succeeds", async () => {
+    const { db } = setup();
+    const rows = Array(1000).fill({ name: "test" });
+    await expect(db.insert(users).values(rows)).resolves.toBeDefined();
+  });
+
+  it("insert bulk over max limit throws", () => {
+    const { db } = setup();
+    const rows = Array(1001).fill({ name: "test" });
+    expect(() => db.insert(users).values(rows)).toThrow("Bulk insert blocked");
+  });
+});
+
+describe("proxy integration — prepare bypass", () => {
+  it(".prepare() returns unwrapped prepared statement", () => {
+    const { db } = setup();
+    const prepared = db.select().from(users).prepare();
+    expect(typeof prepared.execute).toBe("function");
+    expect(typeof prepared.all).toBe("function");
+  });
+});

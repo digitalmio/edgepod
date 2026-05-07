@@ -4,6 +4,7 @@ import { checkResultWarnings } from "./checkResultWarnings";
 import { createSelectProxy } from "./createSelectProxy";
 import { createMutationProxy } from "./createMutationProxy";
 import { recordMutationWithCascades } from "./recordMutation";
+import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
 const MAX_LIMIT = 1000;
@@ -14,32 +15,23 @@ function createInsertProxy(
   tableName: string,
   tablesWritten: Set<string>,
 ): unknown {
-  return new Proxy(builder as any, {
-    get(builderTarget: any, builderProp: string) {
-      if (builderProp === "values") {
-        return function (rows: unknown[]) {
-          if (Array.isArray(rows) && rows.length > maxLimit) {
-            throw new Error(
-              `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
-            );
-          }
-          const result = builderTarget.values(rows);
-          return wrapInsertResult(result, tableName, tablesWritten);
-        };
-      }
-      const value = builderTarget[builderProp];
-      if (typeof value === "function") {
-        return function (...args: unknown[]) {
-          const result = value.apply(builderTarget, args);
-          if (result && typeof result === "object" && "then" in result) {
-            return createInsertProxy(result, maxLimit, tableName, tablesWritten);
-          }
-          return result;
-        };
-      }
-      return value;
+  const config: ProxyConfig = {
+    onMethod: {
+      values: (target, args, _state, _factory) => {
+        const rows = args[0] as unknown[];
+        if (Array.isArray(rows) && rows.length > maxLimit) {
+          throw new Error(
+            `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
+          );
+        }
+        const result = target.values(rows);
+        return wrapInsertResult(result, tableName, tablesWritten);
+      },
     },
-  });
+    onExecute: (target, prop, args) => target[prop](...args),
+  };
+
+  return createQueryProxy(builder, {}, config);
 }
 
 function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<string>) {
@@ -80,18 +72,17 @@ function createUpdateBuilderProxy(
   tableName: string,
   tablesWritten: Set<string>,
 ): unknown {
-  return new Proxy(builder as any, {
-    get(builderTarget: any, builderProp: string) {
-      if (builderProp === "set") {
-        return function (...setArgs: unknown[]) {
-          const base = builderTarget.set.apply(builderTarget, setArgs);
-          return createMutationProxy(base, warnings, "update", undefined, tableName, tablesWritten);
-        };
-      }
-      const value = builderTarget[builderProp];
-      return typeof value === "function" ? value.bind(builderTarget) : value;
+  const config: ProxyConfig = {
+    onMethod: {
+      set: (target, args, _state, _factory) => {
+        const base = target.set(...args);
+        return createMutationProxy(base, warnings, "update", undefined, tableName, tablesWritten);
+      },
     },
-  });
+    onExecute: (target, prop, args) => target[prop](...args),
+  };
+
+  return createQueryProxy(builder, {}, config);
 }
 
 /**
