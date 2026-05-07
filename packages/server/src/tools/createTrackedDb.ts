@@ -4,6 +4,7 @@ import { checkResultWarnings } from "./checkResultWarnings";
 import { createSelectProxy } from "./createSelectProxy";
 import { createMutationProxy } from "./createMutationProxy";
 import { recordMutationWithCascades } from "./recordMutation";
+import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
 const MAX_LIMIT = 1000;
@@ -14,64 +15,30 @@ function createInsertProxy(
   tableName: string,
   tablesWritten: Set<string>,
 ): unknown {
-  return new Proxy(builder as any, {
-    get(builderTarget: any, builderProp: string) {
-      if (builderProp === "values") {
-        return function (rows: unknown[]) {
-          if (Array.isArray(rows) && rows.length > maxLimit) {
-            throw new Error(
-              `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
-            );
-          }
-          const result = builderTarget.values(rows);
-          return wrapInsertResult(result, tableName, tablesWritten);
-        };
-      }
-      const value = builderTarget[builderProp];
-      if (typeof value === "function") {
-        return function (...args: unknown[]) {
-          const result = value.apply(builderTarget, args);
-          if (result && typeof result === "object" && "then" in result) {
-            return createInsertProxy(result, maxLimit, tableName, tablesWritten);
-          }
-          return result;
-        };
-      }
-      return value;
-    },
-  });
-}
-
-function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<string>) {
-  if (result && typeof result === "object" && "then" in result) {
-    return new Proxy(result, {
-      get(resultTarget: any, prop: string) {
-        if (prop === "then") {
-          return function (resolve: any, reject: any) {
-            return resultTarget.then(
-              (value: any) => {
-                recordMutationWithCascades(tableName, tablesWritten, new Map());
-                return resolve(value);
-              },
-              (err: any) => reject(err),
-            );
-          };
+  const config: ProxyConfig = {
+    onMethod: {
+      values: (target, args, _state, factory) => {
+        const rows = args[0] as unknown[];
+        if (Array.isArray(rows) && rows.length > maxLimit) {
+          throw new Error(
+            `[EdgePod] Bulk insert blocked: ${rows.length} rows > ${maxLimit}. Split into smaller batches.`,
+          );
         }
-        const value = resultTarget[prop];
-        if (typeof value === "function") {
-          return function (...args: unknown[]) {
-            const next = value.apply(resultTarget, args);
-            if (next && typeof next === "object" && "then" in next) {
-              return wrapInsertResult(next, tableName, tablesWritten);
-            }
-            return next;
-          };
-        }
-        return value;
+        return factory(target.values(rows), {});
       },
-    });
-  }
-  return result;
+    },
+    onExecute: (target, prop, args) => {
+      if (prop === "prepare") {
+        throw new Error("[EdgePod] .prepare() is not supported for inserts.");
+      }
+      if (tableName !== "unknown") {
+        recordMutationWithCascades(tableName, tablesWritten, new Map());
+      }
+      return target[prop](...args);
+    },
+  };
+
+  return createQueryProxy(builder, {}, config);
 }
 
 function createUpdateBuilderProxy(
@@ -80,18 +47,17 @@ function createUpdateBuilderProxy(
   tableName: string,
   tablesWritten: Set<string>,
 ): unknown {
-  return new Proxy(builder as any, {
-    get(builderTarget: any, builderProp: string) {
-      if (builderProp === "set") {
-        return function (...setArgs: unknown[]) {
-          const base = builderTarget.set.apply(builderTarget, setArgs);
-          return createMutationProxy(base, warnings, "update", undefined, tableName, tablesWritten);
-        };
-      }
-      const value = builderTarget[builderProp];
-      return typeof value === "function" ? value.bind(builderTarget) : value;
+  const config: ProxyConfig = {
+    onMethod: {
+      set: (target, args, _state, _factory) => {
+        const base = target.set(...args);
+        return createMutationProxy(base, warnings, "update", tableName, tablesWritten);
+      },
     },
-  });
+    onExecute: (target, prop, args) => target[prop](...args),
+  };
+
+  return createQueryProxy(builder, {}, config);
 }
 
 /**
@@ -140,7 +106,6 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
             builder,
             warnings,
             "delete",
-            undefined,
             tableName,
             tablesWritten,
             cascadeGraph,
@@ -153,11 +118,11 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
         if (!queryObject) return undefined;
         return new Proxy(queryObject, {
           get(queryTarget: any, tableProp: string) {
+            const tableApi = queryTarget[tableProp];
+            if (!tableApi) return undefined;
             const session = activeSessions.get(sessionId);
             if (session) session.listeningToTables.add(tableProp);
             tablesRead.add(tableProp);
-            const tableApi = queryTarget[tableProp];
-            if (!tableApi) return undefined;
             return new Proxy(tableApi, {
               get(tableTarget: any, method: string) {
                 if (method === "findMany") {
