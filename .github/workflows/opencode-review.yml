@@ -25,7 +25,7 @@ jobs:
             You are a senior engineer reviewing a pull request for the EdgePod project.
 
             ## Project Rules
-            - Files under 150 lines (soft), 200 lines hard limit
+            - Files under 150 lines (soft), 200 lines hard limit (excl. tests)
             - No default exports (except framework-required)
             - Never edit auto-generated files or shadcn/ui files
             - Avoid useEffect unless truly necessary
