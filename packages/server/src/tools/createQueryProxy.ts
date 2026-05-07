@@ -1,4 +1,4 @@
-const EXECUTION_METHODS = ["run", "all", "get", "values", "execute"];
+const EXECUTION_METHODS = ["run", "all", "get", "values", "execute", "prepare"];
 
 type ProxyFactory = (builder: any, state: Record<string, unknown>) => unknown;
 

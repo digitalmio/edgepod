@@ -168,8 +168,8 @@ describe("proxy integration — insert chaining", () => {
   });
 });
 
-describe("proxy integration — prepare bypass", () => {
-  it(".prepare() returns unwrapped prepared statement", () => {
+describe("proxy integration — prepare", () => {
+  it(".prepare() returns prepared statement with limit enforced", () => {
     const { db } = setup();
     const prepared = db.select().from(users).prepare();
     expect(typeof prepared.execute).toBe("function");

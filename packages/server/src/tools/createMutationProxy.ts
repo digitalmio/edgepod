@@ -5,10 +5,10 @@ export function createMutationProxy(
   builder: Record<string, unknown>,
   warnings: string[],
   mutationType: "update" | "delete",
-  initialState = { whereSet: false, withoutWhereSet: false },
   tableName?: string,
   tablesWritten?: Set<string>,
   cascadeGraph?: Map<string, Set<string>>,
+  initialState = { whereSet: false, withoutWhereSet: false },
 ): unknown {
   const config: ProxyConfig = {
     onMethod: {
@@ -26,7 +26,7 @@ export function createMutationProxy(
           `[EdgePod] ${mutationType.toUpperCase()} without WHERE is blocked. If intentional, chain .withoutWhere().`,
         );
       }
-      if (tableName && tablesWritten) {
+      if (prop !== "prepare" && tableName && tablesWritten) {
         recordMutationWithCascades(tableName, tablesWritten, cascadeGraph ?? new Map());
       }
       return target[prop](...args);

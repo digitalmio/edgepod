@@ -54,6 +54,10 @@ export function createSelectProxy(
         trackTable(args[0], tablesRead, activeSessions, sessionId);
         return factory(target.fullJoin(...args), { ...state });
       },
+      crossJoin: (target, args, state, factory) => {
+        trackTable(args[0], tablesRead, activeSessions, sessionId);
+        return factory(target.crossJoin(...args), { ...state });
+      },
     },
     onExecute: (target, prop, args, state) => {
       const finalBuilder = state.limitSet ? target : target.limit(maxLimit);
@@ -63,6 +67,9 @@ export function createSelectProxy(
           checkResultWarnings(result, warnings, maxLimit);
           return (resolve as (v: unknown) => void)(result);
         }, reject);
+      }
+      if (prop === "prepare") {
+        return finalBuilder[prop](...args);
       }
       const result = finalBuilder[prop](...args);
       checkResultWarnings(result, warnings, maxLimit);
