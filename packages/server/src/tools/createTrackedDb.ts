@@ -35,7 +35,7 @@ function createInsertProxy(
 }
 
 function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<string>) {
-  if (result && typeof result === "object" && "then" in result) {
+  if (result && typeof result === "object" && typeof result.then === "function") {
     return new Proxy(result, {
       get(resultTarget: any, prop: string) {
         if (prop === "then") {
@@ -53,7 +53,8 @@ function wrapInsertResult(result: any, tableName: string, tablesWritten: Set<str
         if (typeof value === "function") {
           return function (...args: unknown[]) {
             const next = value.apply(resultTarget, args);
-            if (next && typeof next === "object" && "then" in next) {
+            recordMutationWithCascades(tableName, tablesWritten, new Map());
+            if (next && typeof next === "object" && typeof next.then === "function") {
               return wrapInsertResult(next, tableName, tablesWritten);
             }
             return next;
@@ -144,11 +145,11 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
         if (!queryObject) return undefined;
         return new Proxy(queryObject, {
           get(queryTarget: any, tableProp: string) {
+            const tableApi = queryTarget[tableProp];
+            if (!tableApi) return undefined;
             const session = activeSessions.get(sessionId);
             if (session) session.listeningToTables.add(tableProp);
             tablesRead.add(tableProp);
-            const tableApi = queryTarget[tableProp];
-            if (!tableApi) return undefined;
             return new Proxy(tableApi, {
               get(tableTarget: any, method: string) {
                 if (method === "findMany") {

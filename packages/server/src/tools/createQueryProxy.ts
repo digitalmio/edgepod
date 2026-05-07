@@ -44,7 +44,7 @@ export function createQueryProxy(
       if (typeof value === "function") {
         return function (...args: unknown[]) {
           const result = value.apply(target, args);
-          if (result && typeof result === "object" && "then" in result) {
+          if (result && typeof result === "object" && typeof result.then === "function") {
             return factory(result, { ...state });
           }
           return result;

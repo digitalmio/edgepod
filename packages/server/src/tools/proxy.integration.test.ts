@@ -109,9 +109,9 @@ describe("proxy integration — table tracking", () => {
     expect(tablesWritten.has("users")).toBe(true);
   });
 
-  it("tracks insert as table write (sync)", async () => {
+  it("tracks insert as table write (sync)", () => {
     const { db, tablesWritten } = setup();
-    await db.insert(users).values({ name: "test" });
+    db.insert(users).values({ name: "test" }).run();
     expect(tablesWritten.has("users")).toBe(true);
   });
 
