@@ -47,14 +47,15 @@ vi.mock("../tools/hashTableName", () => ({
 }));
 
 describe("BaseEdgePodEngine.webSocketMessage", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
+  let mockWs: WebSocket;
+  let engine: InstanceType<(typeof import("./do"))["BaseEdgePodEngine"]>;
 
-  it("closes the websocket with 1008 on any incoming message", async () => {
+  beforeEach(async () => {
+    vi.resetModules();
+
     const { BaseEdgePodEngine } = await import("./do");
 
-    const mockWs = {
+    mockWs = {
       close: vi.fn(),
       serializeAttachment: vi.fn(),
     } as unknown as WebSocket;
@@ -68,10 +69,10 @@ describe("BaseEdgePodEngine.webSocketMessage", () => {
       getWebSockets: vi.fn(() => []),
     } as unknown as DurableObjectState;
 
-    const mockEnv = {} as Cloudflare.Env;
+    engine = new BaseEdgePodEngine(mockCtx, {} as Cloudflare.Env);
+  });
 
-    const engine = new BaseEdgePodEngine(mockCtx, mockEnv);
-
+  it("closes the websocket with 1008 on string message", () => {
     engine.webSocketMessage(mockWs, "unexpected data");
 
     expect(mockWs.close).toHaveBeenCalledWith(
@@ -80,33 +81,20 @@ describe("BaseEdgePodEngine.webSocketMessage", () => {
     );
   });
 
-  it("closes the websocket even for ArrayBuffer messages", async () => {
-    const { BaseEdgePodEngine } = await import("./do");
-
-    const mockWs = {
-      close: vi.fn(),
-      serializeAttachment: vi.fn(),
-    } as unknown as WebSocket;
-
-    const mockCtx = {
-      storage: {},
-      setWebSocketAutoResponse: vi.fn(),
-      blockConcurrencyWhile: vi.fn(async (fn) => {
-        await fn();
-      }),
-      getWebSockets: vi.fn(() => []),
-    } as unknown as DurableObjectState;
-
-    const mockEnv = {} as Cloudflare.Env;
-
-    const engine = new BaseEdgePodEngine(mockCtx, mockEnv);
-
-    const buffer = new ArrayBuffer(8);
-    engine.webSocketMessage(mockWs, buffer);
+  it("closes the websocket with 1008 on ArrayBuffer message", () => {
+    engine.webSocketMessage(mockWs, new ArrayBuffer(8));
 
     expect(mockWs.close).toHaveBeenCalledWith(
       1008,
       "Policy Violation: This endpoint is send-only.",
     );
+  });
+
+  it("does not throw when socket is already closing", () => {
+    vi.mocked(mockWs.close).mockImplementation(() => {
+      throw new Error("socket already closing");
+    });
+
+    expect(() => engine.webSocketMessage(mockWs, "unexpected data")).not.toThrow();
   });
 });

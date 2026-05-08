@@ -92,7 +92,11 @@ export class BaseEdgePodEngine extends DurableObject {
   // by setWebSocketAutoResponse so they do not wake the DO from hibernation.
   // Any message that reaches this handler is a protocol violation.
   override webSocketMessage(ws: WebSocket, _message: string | ArrayBuffer) {
-    ws.close(1008, "Policy Violation: This endpoint is send-only.");
+    try {
+      ws.close(1008, "Policy Violation: This endpoint is send-only.");
+    } catch {
+      // Socket already closing; ignore.
+    }
   }
 
   // Handle WebSocket disconnects to prevent memory leaks
