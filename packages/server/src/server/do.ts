@@ -29,7 +29,7 @@ export class BaseEdgePodEngine extends DurableObject {
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env);
 
-    this.rawDb = drizzle(ctx.storage, { logger: true });
+    this.rawDb = drizzle(ctx.storage, { logger: false });
 
     // Handle application-level ping/keepalive messages without waking the DO from hibernation.
     // Protocol-level WebSocket ping frames (RFC 6455) are handled by the runtime automatically
@@ -90,8 +90,9 @@ export class BaseEdgePodEngine extends DurableObject {
   // EdgePod WebSockets are one-directional (server → client invalidations).
   // Incoming messages are not expected; application-level pings are handled
   // by setWebSocketAutoResponse so they do not wake the DO from hibernation.
-  override webSocketMessage(_ws: WebSocket, _message: string | ArrayBuffer) {
-    // No-op: client should not send messages on this channel.
+  // Any message that reaches this handler is a protocol violation.
+  override webSocketMessage(ws: WebSocket, _message: string | ArrayBuffer) {
+    ws.close(1008, "Policy Violation: This endpoint is send-only.");
   }
 
   // Handle WebSocket disconnects to prevent memory leaks
