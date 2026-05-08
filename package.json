@@ -5,7 +5,8 @@
   "scripts": {
     "lint": "oxlint .",
     "format": "oxfmt . --write",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "pnpm --filter '@edgepod/*' build"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260423.1",
@@ -16,6 +17,7 @@
     "oxlint": "^1.61.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "tsdown": "^0.22.0",
     "typescript": "^6.0.3",
     "vitest": "^3.2.0"
   },
