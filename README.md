@@ -167,4 +167,4 @@ These are not configuration options — they are designed to catch accidental mi
 
 ## License
 
-Elastic License 2.0
+Apache License 2.0

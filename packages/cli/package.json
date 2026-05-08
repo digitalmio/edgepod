@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Edgepod CLI - A tool to initialize and manage Edgepod projects",
   "keywords": [],
-  "license": "ISC",
+  "license": "Apache-2.0",
   "author": "Maciej Ziehlke <mac@dmio.co>",
   "bin": {
     "edgepod": "./src/index.ts"

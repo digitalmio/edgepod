@@ -1,6 +1,7 @@
 {
   "name": "edgepod-monorepo",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "lint": "oxlint .",
     "format": "oxfmt . --write",
