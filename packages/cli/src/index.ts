@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 import { consola } from "consola";
 import cac from "cac";
 import { initCommand } from "./commands/init";
