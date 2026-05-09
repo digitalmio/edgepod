@@ -3,6 +3,7 @@ import cac from "cac";
 import { initCommand } from "./commands/init";
 import { buildCommand } from "./commands/build";
 import { infoCommand } from "./commands/info";
+import pkg from "../package.json" with { type: "json" };
 
 consola.options.formatOptions = { date: false };
 
@@ -16,6 +17,6 @@ cli.command("info", "Display project info (API key, worker URL, etc.)").action(i
 cli.command("", "Initialize a new Edgepod project (default)").action(initCommand);
 
 cli.help();
-cli.version("0.0.1");
+cli.version(pkg.version);
 
 cli.parse();

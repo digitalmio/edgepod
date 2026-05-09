@@ -1,4 +1,5 @@
 import { defineConfig } from "tsdown";
+import { addNestedTypes } from "../../scripts/tsdown-config.mjs";
 
 export default defineConfig({
   entry: {
@@ -9,7 +10,9 @@ export default defineConfig({
   platform: "neutral",
   target: "es2022",
   dts: true,
-  exports: true,
+  exports: {
+    customExports: addNestedTypes,
+  },
   outDir: "dist",
   deps: {
     alwaysBundle: ["drizzle-orm", "jose", "neverthrow", "@logtape/logtape"],

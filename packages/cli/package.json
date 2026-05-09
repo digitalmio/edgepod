@@ -8,6 +8,9 @@
   "bin": {
     "edgepod": "./dist/index.mjs"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
