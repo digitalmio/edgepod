@@ -32,8 +32,8 @@ pnpm edgepod:deploy   # Deploy to Cloudflare
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `edgepod init` | Scaffold a new EdgePod project (schema, functions, wrangler config, etc.). |
-| `edgepod build` | Detect schema changes and generate Drizzle migrations. |
-| `edgepod info` | Show project info — API key, worker name, deployed URL. |
+| Command         | Description                                                                |
+| --------------- | -------------------------------------------------------------------------- |
+| `edgepod init`  | Scaffold a new EdgePod project (schema, functions, wrangler config, etc.). |
+| `edgepod build` | Detect schema changes and generate Drizzle migrations.                     |
+| `edgepod info`  | Show project info — API key, worker name, deployed URL.                    |

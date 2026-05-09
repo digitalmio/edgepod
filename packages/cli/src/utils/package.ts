@@ -1,5 +1,6 @@
 import { consola } from "consola";
 import { updatePackage } from "write-package";
+import pkg from "../../package.json" with { type: "json" };
 
 export const addScriptsToPackageJson = async (rootPath: string) => {
   const packageJsonPath = `${rootPath}/package.json`;
@@ -11,8 +12,8 @@ export const addScriptsToPackageJson = async (rootPath: string) => {
     },
     devDependencies: {
       wrangler: "latest",
-      "@edgepod/cli": "latest",
-      "@edgepod/server": "latest",
+      "@edgepod/cli": `^${pkg.version}`,
+      "@edgepod/server": `^${pkg.version}`,
     },
   });
 
