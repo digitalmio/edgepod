@@ -1,10 +1,12 @@
 export const genTypesTemplate = () => `import * as schema from "./schema";
 import type { EdgePodContext } from "@edgepod/server";
+import type { Env } from "./.generated/cloudflare-env";
 
 // Any env vars added to .env will be automatically deployed via Wrangler
-// Please add any custom env vars you need to the Env type below for type safety in your functions
-type Env = {
-  SECRET_KEY: string;
+// Please add any custom env vars you need to the CustomEnv type below for type safety in your functions
+type CustomEnv = {
+  STRIPE_KEY: string;
+  RESEND_API_KEY: string;
 }
 
 // Those are request lifecycle variables that you might want to use in your functions
@@ -20,9 +22,9 @@ type User = {
   isAdmin: boolean;
 } | null
 
-export type Ctx<TVariables extends Record<string, any> = Variables> = EdgePodContext<
+export type Ctx<TVariables extends Record<string, unknown> = Variables> = EdgePodContext<
   typeof schema,
-  Env,
+  Env & CustomEnv,
   TVariables,
   User
 >;

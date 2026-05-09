@@ -31,9 +31,24 @@ type EdgePodStub = {
   fetch(request: Request): Promise<Response>;
 };
 
+const getStub = (
+  env: EdgePodEnv,
+  options?: DataLocationOptions,
+): EdgePodStub => {
+  const namespace = options?.jurisdiction
+    ? env.EDGEPOD_DO.jurisdiction(options.jurisdiction)
+    : env.EDGEPOD_DO;
+  const doId = namespace.idFromName("global-edgepod-instance");
+  return env.EDGEPOD_DO.get(
+    doId,
+    options?.locationHint ? { locationHint: options.locationHint } : undefined,
+  ) as unknown as EdgePodStub;
+};
+
 export const edgePodFetch = async (
   request: Request,
   env: EdgePodEnv,
+  allowedFunctions: string[],
   options?: DataLocationOptions,
 ) => {
   const url = new URL(request.url);
@@ -59,19 +74,23 @@ export const edgePodFetch = async (
     userPayload = result.value as Record<string, unknown>;
   }
 
-  const namespace = options?.jurisdiction
-    ? env.EDGEPOD_DO.jurisdiction(options.jurisdiction)
-    : env.EDGEPOD_DO;
-  const doId = namespace.idFromName("global-edgepod-instance");
-  const stub = env.EDGEPOD_DO.get(
-    doId,
-    options?.locationHint ? { locationHint: options.locationHint } : undefined,
-  ) as unknown as EdgePodStub;
-
   // Durable Object RPC call
   if (url.pathname.startsWith("/rpc/")) {
-    // Remove first 5 characters (/rpc/) to extract function name, e.g. /rpc/myFunction -> myFunction
     const functionName = url.pathname.slice(5);
+
+    if (!allowedFunctions.includes(functionName)) {
+      return Response.json(
+        { success: false, error: `NOT_FOUND: Function "${functionName}" does not exist.` },
+        { status: 404, headers: serverHeader },
+      );
+    }
+
+    if (request.method !== "POST" && request.method !== "GET") {
+      return new Response("Method Not Allowed", {
+        status: 405,
+        headers: serverHeader,
+      });
+    }
 
     const parseArgs = (): ResultAsync<unknown, string> => {
       if (request.method === "POST") {
@@ -90,13 +109,6 @@ export const edgePodFetch = async (
       return ResultAsync.fromPromise(Promise.reject(new Error("unreachable")), () => "unreachable");
     };
 
-    if (request.method !== "POST" && request.method !== "GET") {
-      return new Response("Method Not Allowed", {
-        status: 405,
-        headers: serverHeader,
-      });
-    }
-
     const argsResult = await parseArgs();
     if (argsResult.isErr()) {
       return Response.json(
@@ -105,6 +117,7 @@ export const edgePodFetch = async (
       );
     }
 
+    const stub = getStub(env, options);
     const traceId = crypto.randomUUID();
     const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
     const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
@@ -145,7 +158,7 @@ export const edgePodFetch = async (
         headers: serverHeader,
       });
     }
-    // WebSockets require the HTTP fetch() path to handle the Upgrade header
+    const stub = getStub(env, options);
     return await stub.fetch(request);
   }
 

@@ -1,4 +1,4 @@
-export const routerTemplate = () => `import type * as functions from "./functions/index";
+export const routerTemplate = () => `import type * as functions from "./functions";
 
 export type EdgePodRouter = {
   [K in keyof typeof functions]: {
