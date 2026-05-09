@@ -31,10 +31,7 @@ type EdgePodStub = {
   fetch(request: Request): Promise<Response>;
 };
 
-const getStub = (
-  env: EdgePodEnv,
-  options?: DataLocationOptions,
-): EdgePodStub => {
+const getStub = (env: EdgePodEnv, options?: DataLocationOptions): EdgePodStub => {
   const namespace = options?.jurisdiction
     ? env.EDGEPOD_DO.jurisdiction(options.jurisdiction)
     : env.EDGEPOD_DO;

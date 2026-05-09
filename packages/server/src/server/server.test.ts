@@ -82,11 +82,9 @@ describe("edgePodFetch RPC error status codes", () => {
         err("UNAUTHORIZED: Bearer token required"),
     });
 
-    const response = await edgePodFetch(
-      makeRequest("/rpc/protected"),
-      mockEnv as any,
-      ["protected"],
-    );
+    const response = await edgePodFetch(makeRequest("/rpc/protected"), mockEnv as any, [
+      "protected",
+    ]);
     expect(response.status).toBe(401);
   });
 
@@ -101,11 +99,9 @@ describe("edgePodFetch RPC error status codes", () => {
   });
 
   it("returns 404 without waking DO for unknown function", async () => {
-    const response = await edgePodFetch(
-      makeRequest("/rpc/nonExistent"),
-      mockEnv as any,
-      ["knownFn"],
-    );
+    const response = await edgePodFetch(makeRequest("/rpc/nonExistent"), mockEnv as any, [
+      "knownFn",
+    ]);
     expect(response.status).toBe(404);
     expect(mockStub.executeRpc).not.toHaveBeenCalled();
   });

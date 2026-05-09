@@ -2,7 +2,7 @@ import { consola } from "consola";
 import { generateMigrationFiles } from "../migrations/generate";
 import { findRootPath } from "../utils/findFiles";
 
-export const buildCommand = async () => {
+export const migrationsCommand = async () => {
   const rootPath = await findRootPath();
 
   if (!rootPath) {
@@ -13,7 +13,7 @@ export const buildCommand = async () => {
   try {
     await generateMigrationFiles(rootPath);
   } catch (e) {
-    consola.error(`Build failed: ${e instanceof Error ? e.message : e}`);
+    consola.error(`Migrations failed: ${e instanceof Error ? e.message : e}`);
     process.exit(1);
   }
 };
