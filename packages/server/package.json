@@ -5,10 +5,13 @@
   "keywords": [],
   "license": "Apache-2.0",
   "author": "Maciej Ziehlke <mac@dmio.co>",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
