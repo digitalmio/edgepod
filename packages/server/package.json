@@ -1,6 +1,6 @@
 {
   "name": "@edgepod/server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Server component of Edgepod - Handles API requests, database interactions, and server-side logic",
   "keywords": [],
   "license": "Apache-2.0",
@@ -42,9 +42,13 @@
   "dependencies": {
     "@cloudflare/workers-types": "^4.20260423.1",
     "@logtape/logtape": "^2.0.5",
-    "drizzle-orm": "1.0.0-beta.22",
+    "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3",
     "neverthrow": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.9.0"
   },
   "engines": {
     "node": ">=22.5.0"
