@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { DatabaseSync } from "node:sqlite";
-import { drizzle } from "drizzle-orm/node-sqlite";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { eq } from "drizzle-orm";
 import { createTrackedDb } from "./createTrackedDb";
@@ -18,7 +18,7 @@ const posts = sqliteTable("posts", {
 });
 
 function setup() {
-  const sqlite = new DatabaseSync(":memory:");
+  const sqlite = new Database(":memory:");
   const db = drizzle({ client: sqlite, schema: { users, posts } });
   sqlite.exec(`
     CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
