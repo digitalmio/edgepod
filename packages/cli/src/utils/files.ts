@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { webcrypto } from "node:crypto";
 import { consola } from "consola";
 import { functionsIndexTemplate } from "../templates/functions";
+import { middlewaresTemplate } from "../templates/middlewares";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
 import type { WranglerOptions } from "../templates/wrangler";
@@ -24,6 +25,7 @@ export default null;
   const files = [
     ["edgepod/types.ts", genTypesTemplate()],
     ["edgepod/schema.ts", schemaTemplate()],
+    ["edgepod/middlewares.ts", middlewaresTemplate()],
     ["edgepod/functions/index.ts", functionsIndexTemplate()],
     ["edgepod/.generated/server.ts", serverTemplate(opts)],
     ["edgepod/.generated/migrations/index.ts", emptyMigrationsIndex],
