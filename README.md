@@ -98,7 +98,7 @@ In remote mode, tokens are verified but never issued by EdgePod. In local mode, 
 import { createMiddleware } from "@edgepod/server";
 
 export const withAuth = createMiddleware(async (ctx, args, next) => {
-  if (!ctx.user) throw new Error("Unauthorized");
+  if (!ctx.user) throw new Error("UNAUTHORIZED: Bearer token required");
   return next();
 });
 ```

@@ -127,7 +127,11 @@ export const edgePodFetch = async (
           { headers: serverHeader },
         ),
       (message) => {
-        const status = message.startsWith("NOT_FOUND:") ? 404 : 500;
+        const status = message.startsWith("NOT_FOUND:")
+          ? 404
+          : message.startsWith("UNAUTHORIZED:")
+            ? 401
+            : 500;
         return Response.json({ success: false, error: message }, { status, headers: serverHeader });
       },
     );
