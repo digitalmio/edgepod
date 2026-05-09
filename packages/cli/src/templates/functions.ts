@@ -7,6 +7,7 @@ export const functionsIndexTemplate = () => `// This is where you define your Ed
 import { Ctx } from '../types';
 import { eq } from '@edgepod/server/schema';
 import * as schema from '../schema';
+import { withAuth } from '../middlewares';
 
 // 1. Standard Query
 export const getUsers = async (ctx: Ctx) => {
@@ -36,4 +37,9 @@ export const createUser = async (ctx: Ctx, args: { email: string; name: string }
 
   return newUser[0];
 };
+
+// 4. Auth-protected function (uses withAuth middleware)
+export const getMyDetails = withAuth(async (ctx: Ctx) => {
+  return ctx.user;
+});
 `;
