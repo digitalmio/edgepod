@@ -15,8 +15,6 @@ export default defineConfig({
   },
   outDir: "dist",
   deps: {
-    alwaysBundle: ["drizzle-orm", "jose", "neverthrow", "@logtape/logtape"],
     neverBundle: ["cloudflare:workers", "@cloudflare/workers-types"],
-    onlyBundle: false,
   },
 });

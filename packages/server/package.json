@@ -49,11 +49,5 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "packageManager": "pnpm@10.33.2",
-  "inlinedDependencies": {
-    "@logtape/logtape": "2.0.5",
-    "drizzle-orm": "1.0.0-beta.22",
-    "jose": "6.2.3",
-    "neverthrow": "8.2.0"
-  }
+  "packageManager": "pnpm@10.33.2"
 }
