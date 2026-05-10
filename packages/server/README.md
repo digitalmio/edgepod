@@ -16,7 +16,7 @@ Your day-to-day work is just:
 
 1. Define tables in `edgepod/schema.ts`
 2. Define functions in `edgepod/functions/index.ts`
-3. Run `edgepod build` after schema changes
+3. Run `edgepod migrations` after schema changes
 4. Run `pnpm edgepod:deploy` to ship
 
 > Never edit files in `edgepod/.generated/` — they are overwritten by the CLI.

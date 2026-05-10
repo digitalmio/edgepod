@@ -17,7 +17,7 @@ export const wranglerJsonTemplate = (opts: WranglerOptions): string => {
     compatibility_flags: ["nodejs_compat"],
     vars,
     build: {
-      command: "edgepod build",
+      command: "edgepod migrations",
     },
     durable_objects: {
       bindings: [{ name: "EDGEPOD_DO", class_name: "EdgePodEngine" }],

@@ -50,7 +50,7 @@ export type EdgePodSessionMap = Map<
 export type EdgePodContext<
   TSchema extends Record<string, unknown>,
   TEnv = Record<string, string>, // Cloudflare Env types
-  TVariables extends Record<string, any> = Record<string, any>, // Typed variables for functions
+  TVariables extends Record<string, unknown> = Record<string, unknown>, // Typed variables for functions
   TUser extends Record<string, unknown> | string | null = Record<string, unknown> | string | null, // Typed user object
 > = {
   // The Proxied Database (Safe) + the Raw Database (for advanced use cases with manual invalidation)
@@ -72,7 +72,7 @@ export type EdgePodContext<
   invalidate: (tables: string[]) => void;
 
   // Environment Variables (for Stripe keys, Resend API, etc.)
-  env: TEnv;
+  env: Cloudflare.Env & TEnv;
 
   // Durable Object Memory/State Access
   set: <Key extends keyof TVariables>(key: Key, value: TVariables[Key]) => void;

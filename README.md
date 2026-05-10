@@ -11,6 +11,35 @@
 
 ---
 
+## Why EdgePod
+
+If you're building a client-side app — a React SPA, a Vue dashboard, a Svelte frontend, a mobile app — you already know the drill. You need a backend. You need a database. You need APIs. You need real-time sync. And before you can ship a single feature, you've spent a week wiring it all together.
+
+EdgePod removes all of that.
+
+**Write TypeScript functions. Call them from your frontend like local async calls. Everything is typed. Everything stays in sync. Deploy to your own Cloudflare account.**
+
+### What you get
+
+- **No API layer to maintain** — Export async functions from `edgepod/functions/index.ts`. EdgePod turns them into an RPC router. No REST endpoints, no GraphQL schemas, no OpenAPI spec.
+- **Real-time without the work** — EdgePod tracks which database tables each query touches. When a mutation changes data, it pushes a lightweight invalidation signal over WebSocket. Your frontend cache refreshes automatically. No `useEffect`, no polling, no manual subscriptions.
+- **Type safety end to end** — Define your schema once. Get full TypeScript autocomplete from your database tables all the way to your React hooks. Rename a column? Your frontend breaks at compile time, not at runtime.
+- **Your Cloudflare account, your data** — EdgePod deploys as a Worker + Durable Object directly to your Cloudflare account. No hosted platform, no vendor lock-in, no surprise bills.
+- **SQLite at the edge** — The database lives inside the Durable Object alongside your compute. No connection pooling, no cold-start latency, no network hop between your code and your data.
+
+### How it works
+
+EdgePod runs as a single Durable Object on Cloudflare's edge network. Your SQLite database is embedded directly in that process. When a client calls an RPC function, the request hits the Durable Object, executes your code, and returns the result — all within the same process.
+
+For reactivity, EdgePod uses a dual-protocol approach:
+
+- **HTTP** carries all your queries and mutations. Standard POST requests, standard status codes, easy to debug in the network tab.
+- **WebSockets** carry only lightweight invalidation signals. The server never sends row data over the socket — it just tells your client which tables changed. Your frontend refetches what it needs.
+
+The result is a system that feels like a local database to your frontend, but runs entirely at the edge, scales automatically, and keeps your UI in sync without you writing a single line of WebSocket code.
+
+---
+
 ## 🏗️ Core Architecture
 
 EdgePod is built on a **Dual-Protocol** architecture, separating data transfer from reactivity to maximize performance and reliability.

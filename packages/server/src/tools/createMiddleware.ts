@@ -1,7 +1,9 @@
+export type NextFn = () => Promise<unknown>;
+
 // Creates a middleware wrapper for EdgePod functions
 // Uses the familiar (ctx, args, next) Hono-like pattern
-export function createMiddleware<TCtx, TMiddlewareArgs = any>(
-  middlewareLogic: (ctx: TCtx, args: TMiddlewareArgs, next: () => Promise<any>) => Promise<any>,
+export function createMiddleware<TCtx, TMiddlewareArgs = unknown>(
+  middlewareLogic: (ctx: TCtx, args: TMiddlewareArgs, next: NextFn) => Promise<unknown>,
 ) {
   // this is the actual middleware HOC returned to the user (e.g., `withProjectAccess`)
   return <TArgs extends TMiddlewareArgs, TReturn>(

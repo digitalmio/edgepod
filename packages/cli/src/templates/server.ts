@@ -12,7 +12,7 @@ export const serverTemplate = (opts?: DataLocationOptions) => {
 
   return `import { edgePodFetch, BaseEdgePodEngine } from "@edgepod/server";
 import * as schema from "../schema";
-import * as functions from "../functions/index";
+import * as functions from "../functions";
 import migrations from "./migrations/index";
 
 export class EdgePodEngine extends BaseEdgePodEngine {
@@ -21,9 +21,11 @@ export class EdgePodEngine extends BaseEdgePodEngine {
   protected override migrations = migrations;
 }
 
+import type { Cloudflare } from "@cloudflare/workers-types";
+
 export default {
-  async fetch(request: Request, env: any) {
-    return edgePodFetch(request, env${optArg});
+  async fetch(request: Request, env: Cloudflare.Env) {
+    return edgePodFetch(request, env, Object.keys(functions)${optArg});
   },
 };
 `;
