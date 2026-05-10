@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import useSWR from "swr";
 import { EdgePodProvider } from "../provider/provider";
-import { useQuery } from "./useQuery";
+import { useInternalQuery } from "./useQuery";
 import { registerQuery, deregisterQuery } from "../store/registry";
 
 vi.mock("../rpc/fetcher", () => ({
@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.mocked(deregisterQuery).mockClear();
 });
 
-describe("useQuery", () => {
+describe("useInternalQuery", () => {
   it("skips fetch when args is null", () => {
     mockedUseSWR.mockReturnValue({
       data: undefined,
@@ -47,7 +47,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { result } = renderHook(() => useQuery("getUsers", null), { wrapper });
+    const { result } = renderHook(() => useInternalQuery("getUsers", null), { wrapper });
 
     expect(mockedUseSWR).toHaveBeenCalledWith(null, null, expect.any(Object));
     expect(result.current.data).toBeUndefined();
@@ -68,7 +68,7 @@ describe("useQuery", () => {
       mutate: mutateFn,
     });
 
-    renderHook(() => useQuery("getUsers", {}), { wrapper });
+    renderHook(() => useInternalQuery("getUsers", {}), { wrapper });
 
     await waitFor(() => {
       expect(registerQuery).toHaveBeenCalledWith(["a1b2", "c3d4"], ["edgepod", "getUsers", {}]);
@@ -89,7 +89,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    const { unmount } = renderHook(() => useQuery("getUsers", {}), { wrapper });
+    const { unmount } = renderHook(() => useInternalQuery("getUsers", {}), { wrapper });
 
     await waitFor(() => {
       expect(registerQuery).toHaveBeenCalled();
@@ -111,7 +111,7 @@ describe("useQuery", () => {
       mutate: vi.fn(),
     });
 
-    renderHook(() => useQuery("getUsers", { limit: 10 }), { wrapper });
+    renderHook(() => useInternalQuery("getUsers", { limit: 10 }), { wrapper });
 
     const matchingCall = mockedUseSWR.mock.calls.find(
       ([key]) =>

@@ -9,6 +9,6 @@ function subscribe(callback: () => void) {
   return $wsStatus.subscribe(callback);
 }
 
-export function useStatus() {
+export function useInternalStatus() {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

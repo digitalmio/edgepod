@@ -5,7 +5,16 @@ import { verifyJwt } from "./auth";
 import { hashMetaTableNames } from "../tools/hashTableName";
 import { ResultAsync } from "neverthrow";
 
-const serverHeader = { "X-Powered-By": `EdgePod/${pkg.version}` };
+// EdgePod is origin-agnostic by design. Every request is authenticated via the
+// publishable API key (X-Edgepod-Key); CORS is not used as a security gate.
+const serverHeader = {
+  "X-Powered-By": `EdgePod/${pkg.version}`,
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-Edgepod-Key, X-Edgepod-Session-Id",
+  "Access-Control-Max-Age": "86400",
+};
 
 type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
@@ -49,6 +58,11 @@ export const edgePodFetch = async (
   options?: DataLocationOptions,
 ) => {
   const url = new URL(request.url);
+
+  // CORS preflight — must come before auth check (browsers don't send custom headers on OPTIONS)
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: serverHeader });
+  }
 
   // API key auth — WebSocket upgrades can't send custom headers, so also accept ?key= query param
   const apiKey = request.headers.get("X-Edgepod-Key") ?? url.searchParams.get("key");

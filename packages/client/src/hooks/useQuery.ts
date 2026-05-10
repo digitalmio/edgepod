@@ -12,7 +12,7 @@ export type UseQueryOptions<T> = {
   errorRetryCount?: number;
 };
 
-export function useQuery<T>(
+export function useInternalQuery<T>(
   functionName: string,
   args?: Record<string, unknown> | null,
   options?: UseQueryOptions<T>,
@@ -43,7 +43,7 @@ export function useQuery<T>(
   const {
     data: result,
     error,
-    isLoading,
+    isLoading: isQuerying,
     isValidating,
     mutate,
   } = useSWR(key, key ? () => rpcFetcher<T>(ctx, functionName, args ?? {}) : null, swrConfig);
@@ -66,7 +66,7 @@ export function useQuery<T>(
   return {
     data: result?.data,
     error,
-    isLoading,
+    isQuerying,
     isValidating,
     mutate,
   };
