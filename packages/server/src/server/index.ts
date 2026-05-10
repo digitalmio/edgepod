@@ -5,6 +5,8 @@ import { verifyJwt } from "./auth";
 import { hashMetaTableNames } from "../tools/hashTableName";
 import { ResultAsync } from "neverthrow";
 
+// EdgePod is origin-agnostic by design. Every request is authenticated via the
+// publishable API key (X-Edgepod-Key); CORS is not used as a security gate.
 const serverHeader = {
   "X-Powered-By": `EdgePod/${pkg.version}`,
   "Access-Control-Allow-Origin": "*",

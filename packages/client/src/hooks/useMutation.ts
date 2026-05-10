@@ -9,7 +9,7 @@ export type UseMutationOptions<T> = {
   onError?: (error: Error) => void;
 };
 
-export function useInternalMutation<T, A = any>(
+export function useInternalMutation<T, A = unknown>(
   functionName: string,
   options?: UseMutationOptions<T>,
 ) {

@@ -77,6 +77,10 @@ Every EdgePod project is deployed directly to the user's Cloudflare account as a
 - **HTTP for Data Transfer (The Workhorse):** All queries (`getUsers`) and mutations (`insertUser`) are executed via standard HTTP POST requests. This ensures massive payloads are handled gracefully with native browser gzipping, standard HTTP status codes, and easy network tab debugging.
 - **WebSockets for Reactivity (The Whisperer):** WebSockets are used **strictly** for lightweight, unidirectional "ping" signals. The server never sends row data over WS; it simply pushes minimal dependency alerts: `{"type": "stale", "tables": ["users"]}`.
 
+### Security Model
+
+EdgePod is origin-agnostic by design. Every request is authenticated via the publishable API key (`EP_PK_...`); CORS is not used as a security gate. This allows SPAs, mobile apps, and third-party frontends to call your backend directly without origin whitelisting.
+
 ### The Reactivity Engine
 
 EdgePod achieves automatic reactivity without requiring developers to manually declare table dependencies:
