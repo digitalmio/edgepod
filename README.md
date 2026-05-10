@@ -40,6 +40,25 @@ The result is a system that feels like a local database to your frontend, but ru
 
 ---
 
+## 🚀 Quick Start
+
+You need a project with a `package.json`. Then:
+
+```bash
+npx @edgepod/cli init
+```
+
+This scaffolds the `edgepod/` directory (schema, functions, wrangler config) and installs dependencies. After that:
+
+```bash
+pnpm edgepod:dev      # Start local dev server
+pnpm edgepod:deploy   # Ship to Cloudflare
+```
+
+For full details on prerequisites, auth setup, and project structure, see the [CLI README](packages/cli/README.md).
+
+---
+
 ## 🏗️ Core Architecture
 
 EdgePod is built on a **Dual-Protocol** architecture, separating data transfer from reactivity to maximize performance and reliability.
