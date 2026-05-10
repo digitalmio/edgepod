@@ -42,7 +42,7 @@ describe("useInternalQuery", () => {
     mockedUseSWR.mockReturnValue({
       data: undefined,
       error: undefined,
-      isLoading: false,
+      isQuerying: false,
       isValidating: false,
       mutate: vi.fn(),
     });
@@ -63,7 +63,7 @@ describe("useInternalQuery", () => {
     mockedUseSWR.mockReturnValue({
       data: swrData,
       error: undefined,
-      isLoading: false,
+      isQuerying: false,
       isValidating: false,
       mutate: mutateFn,
     });
@@ -84,7 +84,7 @@ describe("useInternalQuery", () => {
     mockedUseSWR.mockReturnValue({
       data: swrData,
       error: undefined,
-      isLoading: false,
+      isQuerying: false,
       isValidating: false,
       mutate: vi.fn(),
     });
@@ -106,7 +106,7 @@ describe("useInternalQuery", () => {
     mockedUseSWR.mockReturnValue({
       data: undefined,
       error: undefined,
-      isLoading: false,
+      isQuerying: false,
       isValidating: false,
       mutate: vi.fn(),
     });

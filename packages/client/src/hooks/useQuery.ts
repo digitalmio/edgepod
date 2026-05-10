@@ -43,7 +43,7 @@ export function useInternalQuery<T>(
   const {
     data: result,
     error,
-    isLoading,
+    isLoading: isQuerying,
     isValidating,
     mutate,
   } = useSWR(key, key ? () => rpcFetcher<T>(ctx, functionName, args ?? {}) : null, swrConfig);
@@ -66,7 +66,7 @@ export function useInternalQuery<T>(
   return {
     data: result?.data,
     error,
-    isLoading,
+    isQuerying,
     isValidating,
     mutate,
   };

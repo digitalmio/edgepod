@@ -32,9 +32,9 @@ function App() {
 import { useQuery, useMutation, useStatus } from "./edgepod/client";
 
 function Post({ id }: { id: string }) {
-  const { data, error, isLoading } = useQuery("getPost", { id });
+  const { data, error, isQuerying } = useQuery("getPost", { id });
 
-  if (isLoading) return <p>Loading…</p>;
+  if (isQuerying) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
   return <h1>{data?.title}</h1>;
 }
@@ -78,7 +78,7 @@ Read query backed by SWR.
 | `args`         | `object` \| `null` | Arguments to pass. Pass `null` to skip fetching. |
 | `options`      | `object`           | See options below.                               |
 
-Returns `{ data, error, isLoading, isValidating, mutate }`.
+Returns `{ data, error, isQuerying, isValidating, mutate }`.
 
 ### `useMutation(functionName, options?)`
 
