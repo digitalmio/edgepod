@@ -9,7 +9,10 @@ export type UseMutationOptions<T> = {
   onError?: (error: Error) => void;
 };
 
-export function useMutation<T, A = any>(functionName: string, options?: UseMutationOptions<T>) {
+export function useInternalMutation<T, A = any>(
+  functionName: string,
+  options?: UseMutationOptions<T>,
+) {
   const ctx = useEdgePod();
 
   const swrConfig = useMemo<SWRMutationConfiguration<T, Error, string, A>>(() => {

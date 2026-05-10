@@ -12,7 +12,7 @@ export type UseQueryOptions<T> = {
   errorRetryCount?: number;
 };
 
-export function useQuery<T>(
+export function useInternalQuery<T>(
   functionName: string,
   args?: Record<string, unknown> | null,
   options?: UseQueryOptions<T>,

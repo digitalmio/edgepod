@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import useSWRMutation from "swr/mutation";
 import { EdgePodProvider } from "../provider/provider";
-import { useMutation } from "./useMutation";
+import { useInternalMutation } from "./useMutation";
 import { invalidateTables } from "../store/registry";
 
 vi.mock("../rpc/fetcher", () => ({
@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.mocked(invalidateTables).mockClear();
 });
 
-describe("useMutation", () => {
+describe("useInternalMutation", () => {
   it("calls invalidateTables on successful mutation with _meta.t", async () => {
     const triggerFn = vi.fn(async () => {
       const { data: rpcData, _meta } = await rpcFetcher(
@@ -63,7 +63,7 @@ describe("useMutation", () => {
       _meta: { t: ["a1b2", "c3d4"] },
     });
 
-    const { result } = renderHook(() => useMutation("createUser"), { wrapper });
+    const { result } = renderHook(() => useInternalMutation("createUser"), { wrapper });
 
     await (result.current.trigger as any)({ email: "a@b.com" });
 
@@ -97,7 +97,7 @@ describe("useMutation", () => {
       _meta: { t: [] },
     });
 
-    const { result } = renderHook(() => useMutation("ping"), { wrapper });
+    const { result } = renderHook(() => useInternalMutation("ping"), { wrapper });
 
     await (result.current.trigger as any)({});
 
@@ -112,7 +112,7 @@ describe("useMutation", () => {
       isMutating: true,
     });
 
-    const { result } = renderHook(() => useMutation("createUser"), { wrapper });
+    const { result } = renderHook(() => useInternalMutation("createUser"), { wrapper });
 
     expect(typeof result.current.trigger).toBe("function");
     expect(result.current.data).toEqual({ id: 1 });
