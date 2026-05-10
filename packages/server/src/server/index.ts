@@ -36,7 +36,7 @@ const getStub = (env: EdgePodEnv, options?: DataLocationOptions): EdgePodStub =>
     ? env.EDGEPOD_DO.jurisdiction(options.jurisdiction)
     : env.EDGEPOD_DO;
   const doId = namespace.idFromName("global-edgepod-instance");
-  return env.EDGEPOD_DO.get(
+  return namespace.get(
     doId,
     options?.locationHint ? { locationHint: options.locationHint } : undefined,
   ) as unknown as EdgePodStub;
