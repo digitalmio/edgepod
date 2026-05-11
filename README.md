@@ -177,11 +177,11 @@ function App() {
 import { useQuery, useMutation, useStatus } from "./edgepod/client";
 
 function Users() {
-  const { data, isQuerying, error } = useQuery("getUsers");
+  const { data, isLoading, error } = useQuery("getUsers");
   const { trigger, isMutating } = useMutation("insertUser");
   const status = useStatus();
 
-  if (isQuerying) return <p>Loading…</p>;
+  if (isLoading) return <p>Loading…</p>;
   if (error) return <p>Error: {error.message}</p>;
 
   return (
