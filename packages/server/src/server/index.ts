@@ -139,25 +139,26 @@ export const edgePodFetch = async (
       reactive,
     });
 
-    return result.match(
-      ({ data, meta, warnings }) =>
-        Response.json(
-          {
-            success: true,
-            data,
-            _meta: { t: hashMetaTableNames(meta.read) },
-            ...(warnings.length > 0 ? { warnings } : {}),
-          },
-          { headers: serverHeader },
-        ),
-      (message) => {
-        const status = message.startsWith("NOT_FOUND:")
-          ? 404
-          : message.startsWith("UNAUTHORIZED:")
-            ? 401
-            : 500;
-        return Response.json({ success: false, error: message }, { status, headers: serverHeader });
-      },
+    if (result.success) {
+      return Response.json(
+        {
+          success: true,
+          data: result.data,
+          _meta: { t: hashMetaTableNames(result.meta.read) },
+          ...(result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+        },
+        { headers: serverHeader },
+      );
+    }
+
+    const status = result.error.startsWith("NOT_FOUND:")
+      ? 404
+      : result.error.startsWith("UNAUTHORIZED:")
+        ? 401
+        : 500;
+    return Response.json(
+      { success: false, error: result.error },
+      { status, headers: serverHeader },
     );
   }
 

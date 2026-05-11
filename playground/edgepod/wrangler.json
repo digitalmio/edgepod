@@ -1,0 +1,30 @@
+{
+  "name": "edgepod-server",
+  "main": "./.generated/server.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "EDGEPOD_API_KEY": "ep_pk_640d7166-70f7-443e-9d0f-f3868d608bc6"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EDGEPOD_DO",
+        "class_name": "EdgePodEngine"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["EdgePodEngine"]
+    }
+  ],
+  "dev": {
+    "port": 8989
+  },
+  "assets": {
+    "directory": "./.generated/public",
+    "binding": "ASSETS"
+  }
+}

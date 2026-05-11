@@ -1,0 +1,40 @@
+{
+  "name": "playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "preedgepod:dev": "edgepod migrations && wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts",
+    "edgepod:dev": "wrangler dev -c edgepod/wrangler.json",
+    "edgepod:migrations": "edgepod migrations",
+    "preedgepod:deploy": "edgepod migrations && wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts",
+    "edgepod:deploy": "wrangler deploy -c edgepod/wrangler.json --secrets-file edgepod/.env"
+  },
+  "dependencies": {
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "@edgepod/cli": "workspace:*",
+    "@edgepod/client": "workspace:*",
+    "@edgepod/server": "workspace:*",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12",
+    "wrangler": "latest"
+  }
+}

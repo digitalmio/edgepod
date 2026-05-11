@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createTrackedDb } from "./createTrackedDb";
+import { hashTableName } from "./hashTableName";
 import type { EdgePodSessionMap, RawDrizzleDb } from "../types";
 
 vi.mock("drizzle-orm", () => ({
@@ -238,7 +239,7 @@ describe("createTrackedDb", () => {
     await (proxy as any).query.users.findMany();
 
     const session = activeSessions.get(sessionId);
-    expect(session?.listeningToTables.has("users")).toBe(true);
+    expect(session?.listeningToTables.has(hashTableName("users"))).toBe(true);
   });
 
   it("applies limit to query.findMany", async () => {

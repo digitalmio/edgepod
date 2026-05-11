@@ -1,19 +1,19 @@
 import { DurableObject } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
-import { Result, ok, err } from "neverthrow";
 import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
 import { initJwtSigner, getJwtSigner } from "./auth";
 import { initLogger, createLogger } from "./logger";
-import type {
-  EdgePodSessionMap,
-  EdgePodContext,
-  RpcRequest,
-  RpcResponse,
-  JsonValue,
-} from "../types";
-import { hashMetaTableNames } from "../tools/hashTableName";
+import type { EdgePodSessionMap, EdgePodContext, RpcRequest, RpcMeta, JsonValue } from "../types";
+import { hashMetaTableNames, hashTableName } from "../tools/hashTableName";
+
+// neverthrow discriminated unions (Result<T, E>) are not serializable across
+// Cloudflare Durable Object RPC boundaries because they carry prototype
+// methods. We use a plain object union that survives RPC marshalling.
+export type ExecuteRpcResult =
+  | { success: true; data: unknown; meta: RpcMeta; warnings: string[] }
+  | { success: false; error: string };
 
 export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
@@ -111,16 +111,13 @@ export class BaseEdgePodEngine extends DurableObject {
 
   // The RPC Execution Engine
   // aka this is where we are running user code
-  async executeRpc(
-    functionName: string,
-    args: any,
-    rpcCtx: RpcRequest,
-  ): Promise<Result<RpcResponse, string>> {
+  async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest): Promise<ExecuteRpcResult> {
     const { headers, user, traceId, reactive } = rpcCtx;
     const sessionId = headers["x-edgepod-session-id"] || "anonymous";
 
     const handler = this.userFunctions[functionName];
-    if (!handler) return err(`NOT_FOUND: Function "${functionName}" not found.`);
+    if (!handler)
+      return { success: false, error: `NOT_FOUND: Function "${functionName}" not found.` };
 
     // session variable store
     const variableStore = new Map();
@@ -156,7 +153,7 @@ export class BaseEdgePodEngine extends DurableObject {
       subscribeTo: (tables: string[]) => {
         const session = this.activeSessions.get(sessionId);
         if (session) {
-          tables.forEach((t) => session.listeningToTables.add(t));
+          tables.forEach((t) => session.listeningToTables.add(hashTableName(t)));
           // Keep the attachment in sync so subscriptions survive hibernation
           session.socket.serializeAttachment({
             sessionId,
@@ -178,13 +175,14 @@ export class BaseEdgePodEngine extends DurableObject {
         this.broadcastInvalidations(hashedTableNames);
       }
 
-      return ok({
+      return {
+        success: true,
         data,
         meta: { read: [...tablesRead], changed: [...tablesWritten] },
         warnings,
-      });
+      };
     } catch (e) {
-      return err(e instanceof Error ? e.message : String(e));
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   }
 

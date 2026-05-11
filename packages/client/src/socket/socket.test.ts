@@ -9,7 +9,7 @@ let mockSocketInstance: {
 };
 
 vi.mock("partysocket", () => ({
-  default: vi.fn().mockImplementation(() => {
+  WebSocket: vi.fn().mockImplementation(() => {
     mockSocketInstance = {
       addEventListener: vi.fn((event: string, handler: (event: Event) => void) => {
         if (!mockSocketInstance._handlers[event]) {
@@ -121,15 +121,12 @@ describe("connectSocket", () => {
     expect(mockSocketInstance.close).toHaveBeenCalledOnce();
   });
 
-  it("creates PartySocket with correct config", async () => {
+  it("creates WebSocket with correct URL", async () => {
     connectSocket("https://api.edgepod.dev", "key", "sid", vi.fn());
 
-    const PartySocket = vi.mocked((await import("partysocket")).default);
-    expect(PartySocket).toHaveBeenCalledWith({
-      host: "https://api.edgepod.dev",
-      room: "sid",
-      path: "ws",
-      query: { key: "key", sessionId: "sid" },
-    });
+    const { WebSocket: MockWebSocket } = await import("partysocket");
+    expect(vi.mocked(MockWebSocket)).toHaveBeenCalledWith(
+      "wss://api.edgepod.dev/ws?key=key&sessionId=sid",
+    );
   });
 });

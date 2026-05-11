@@ -1,0 +1,15 @@
+{
+  "keys": [
+    {
+      "key_ops": ["verify"],
+      "ext": true,
+      "kty": "EC",
+      "x": "YhQmYel7ACeYYS2lw4f_1y6daUGg1NAxRFYnieIooTA",
+      "y": "QzotKg_zsoCeSvEgUvi5NuU-FZjGAXGks0L3tFOk-Hw",
+      "crv": "P-256",
+      "kid": "edgepod-local-key",
+      "use": "sig",
+      "alg": "ES256"
+    }
+  ]
+}

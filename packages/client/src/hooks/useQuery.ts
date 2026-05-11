@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import useSWR, { type SWRConfiguration } from "swr";
 import { rpcFetcher } from "../rpc/fetcher";
 import { registerQuery, deregisterQuery } from "../store/registry";
@@ -20,7 +20,7 @@ export function useInternalQuery<T>(
   const ctx = useEdgePod();
 
   const key = useMemo(
-    () => (args === null ? null : (["edgepod", functionName, args] as unknown[])),
+    () => (args === null ? null : (["edgepod", functionName, args ?? null] as unknown[])),
     [functionName, args],
   );
 
@@ -62,6 +62,14 @@ export function useInternalQuery<T>(
       deregisterQuery(tables, swrKey);
     };
   }, [key, tablesDep]);
+
+  const prevWsStatus = useRef(ctx.wsStatus);
+  useEffect(() => {
+    if (prevWsStatus.current !== "connected" && ctx.wsStatus === "connected" && key) {
+      mutate();
+    }
+    prevWsStatus.current = ctx.wsStatus;
+  }, [ctx.wsStatus, key, mutate]);
 
   return {
     data: result?.data,

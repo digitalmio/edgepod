@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import useSWR from "swr";
 import { EdgePodProvider } from "../provider/provider";
 import { useInternalQuery } from "./useQuery";
 import { registerQuery, deregisterQuery } from "../store/registry";
+import { $wsStatus } from "../socket/socket";
 
 vi.mock("../rpc/fetcher", () => ({
   rpcFetcher: vi.fn(),
@@ -35,6 +36,7 @@ beforeEach(() => {
   (useSWR as any).mockImplementation(mockedUseSWR);
   vi.mocked(registerQuery).mockClear();
   vi.mocked(deregisterQuery).mockClear();
+  $wsStatus.set("disconnected");
 });
 
 describe("useInternalQuery", () => {
@@ -100,6 +102,51 @@ describe("useInternalQuery", () => {
     await waitFor(() => {
       expect(deregisterQuery).toHaveBeenCalledWith(["a1b2"], ["edgepod", "getUsers", {}]);
     });
+  });
+
+  it("revalidates when websocket connects", async () => {
+    const mutateFn = vi.fn();
+    const swrData = {
+      data: [{ id: 1 }],
+      _meta: { t: ["a1b2"] },
+    };
+
+    mockedUseSWR.mockReturnValue({
+      data: swrData,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: mutateFn,
+    });
+
+    renderHook(() => useInternalQuery("getUsers", {}), { wrapper });
+
+    act(() => {
+      $wsStatus.set("connected");
+    });
+
+    await waitFor(() => {
+      expect(mutateFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("normalizes undefined args to null in swr key", () => {
+    mockedUseSWR.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: vi.fn(),
+    });
+
+    renderHook(() => useInternalQuery("getUsers"), { wrapper });
+
+    const matchingCall = mockedUseSWR.mock.calls.find(
+      ([key]) =>
+        Array.isArray(key) && key[0] === "edgepod" && key[1] === "getUsers" && key[2] === null,
+    );
+
+    expect(matchingCall).toBeDefined();
   });
 
   it("passes correct swr key format", () => {

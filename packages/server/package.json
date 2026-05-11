@@ -1,10 +1,14 @@
 {
   "name": "@edgepod/server",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Server component of Edgepod - Handles API requests, database interactions, and server-side logic",
   "keywords": [],
   "license": "Apache-2.0",
   "author": "Maciej Ziehlke <mac@dmio.co>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digitalmio/edgepod.git"
+  },
   "files": [
     "dist"
   ],

@@ -1,4 +1,4 @@
-import PartySocket from "partysocket";
+import { WebSocket as ReconnectingWebSocket } from "partysocket";
 import { atom } from "nanostores";
 
 type IncomingMessage = {
@@ -33,12 +33,13 @@ export function connectSocket(
   sessionId: string,
   onInvalidate: (tables: string[]) => void,
 ): () => void {
-  const socket = new PartySocket({
-    host: url,
-    room: sessionId,
-    path: "ws",
-    query: { key: apiKey, sessionId },
-  });
+  const wsUrl = new URL(url);
+  wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
+  wsUrl.pathname = "/ws";
+  wsUrl.searchParams.set("key", apiKey);
+  wsUrl.searchParams.set("sessionId", sessionId);
+
+  const socket = new ReconnectingWebSocket(wsUrl.toString());
 
   function handleOpen() {
     $wsStatus.set("connected");
