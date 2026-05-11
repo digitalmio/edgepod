@@ -7,7 +7,7 @@
   "author": "Maciej Ziehlke <mac@dmio.co>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digitalmio/edgepod.git"
+    "url": "https://github.com/digitalmio/edgepod.git"
   },
   "files": [
     "dist"
