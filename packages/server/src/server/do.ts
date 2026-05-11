@@ -8,6 +8,9 @@ import { initLogger, createLogger } from "./logger";
 import type { EdgePodSessionMap, EdgePodContext, RpcRequest, RpcMeta, JsonValue } from "../types";
 import { hashMetaTableNames, hashTableName } from "../tools/hashTableName";
 
+// neverthrow discriminated unions (Result<T, E>) are not serializable across
+// Cloudflare Durable Object RPC boundaries because they carry prototype
+// methods. We use a plain object union that survives RPC marshalling.
 export type ExecuteRpcResult =
   | { success: true; data: unknown; meta: RpcMeta; warnings: string[] }
   | { success: false; error: string };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import useSWR, { type SWRConfiguration } from "swr";
 import { rpcFetcher } from "../rpc/fetcher";
 import { registerQuery, deregisterQuery } from "../store/registry";
@@ -63,10 +63,12 @@ export function useInternalQuery<T>(
     };
   }, [key, tablesDep]);
 
+  const prevWsStatus = useRef(ctx.wsStatus);
   useEffect(() => {
-    if (ctx.wsStatus === "connected" && key) {
+    if (prevWsStatus.current !== "connected" && ctx.wsStatus === "connected" && key) {
       mutate();
     }
+    prevWsStatus.current = ctx.wsStatus;
   }, [ctx.wsStatus, key, mutate]);
 
   return {
