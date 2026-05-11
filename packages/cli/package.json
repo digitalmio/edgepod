@@ -1,6 +1,6 @@
 {
   "name": "@edgepod/cli",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Edgepod CLI - A tool to initialize and manage Edgepod projects",
   "keywords": [],
   "license": "Apache-2.0",
