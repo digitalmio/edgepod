@@ -2,6 +2,7 @@ import { getTableName } from "drizzle-orm";
 import { EdgePodSessionMap } from "../types";
 import { checkResultWarnings } from "./checkResultWarnings";
 import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
+import { hashTableName } from "./hashTableName";
 
 function trackTable(
   table: unknown,
@@ -12,7 +13,7 @@ function trackTable(
   const tableName = getTableName(table as any) ?? "unknown";
   if (tableName === "unknown") return;
   const session = activeSessions.get(sessionId);
-  if (session) session.listeningToTables.add(tableName);
+  if (session) session.listeningToTables.add(hashTableName(tableName));
   tablesRead.add(tableName);
 }
 

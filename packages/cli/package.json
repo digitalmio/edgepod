@@ -1,10 +1,14 @@
 {
   "name": "@edgepod/cli",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Edgepod CLI - A tool to initialize and manage Edgepod projects",
   "keywords": [],
   "license": "Apache-2.0",
   "author": "Maciej Ziehlke <mac@dmio.co>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digitalmio/edgepod.git"
+  },
   "bin": {
     "edgepod": "./dist/index.mjs"
   },

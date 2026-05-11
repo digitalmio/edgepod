@@ -67,8 +67,8 @@ describe("edgePodFetch RPC error status codes", () => {
 
   it("returns 404 for NOT_FOUND: errors", async () => {
     mockStub.executeRpc.mockResolvedValue({
-      isErr: () => true,
-      match: (_ok: unknown, err: (msg: string) => Response) => err("NOT_FOUND: Function not found"),
+      success: false,
+      error: "NOT_FOUND: Function not found",
     });
 
     const response = await edgePodFetch(makeRequest("/rpc/missing"), mockEnv as any, ["missing"]);
@@ -77,9 +77,8 @@ describe("edgePodFetch RPC error status codes", () => {
 
   it("returns 401 for UNAUTHORIZED: errors", async () => {
     mockStub.executeRpc.mockResolvedValue({
-      isErr: () => true,
-      match: (_ok: unknown, err: (msg: string) => Response) =>
-        err("UNAUTHORIZED: Bearer token required"),
+      success: false,
+      error: "UNAUTHORIZED: Bearer token required",
     });
 
     const response = await edgePodFetch(makeRequest("/rpc/protected"), mockEnv as any, [
@@ -90,8 +89,8 @@ describe("edgePodFetch RPC error status codes", () => {
 
   it("returns 500 for generic errors", async () => {
     mockStub.executeRpc.mockResolvedValue({
-      isErr: () => true,
-      match: (_ok: unknown, err: (msg: string) => Response) => err("Something went wrong"),
+      success: false,
+      error: "Something went wrong",
     });
 
     const response = await edgePodFetch(makeRequest("/rpc/broken"), mockEnv as any, ["broken"]);
@@ -149,9 +148,10 @@ describe("edgePodFetch CORS", () => {
 
   it("includes CORS headers on successful RPC response", async () => {
     mockStub.executeRpc.mockResolvedValue({
-      isErr: () => false,
-      match: (ok: (v: any) => Response) =>
-        ok({ data: { id: 1 }, meta: { read: [] }, warnings: [] }),
+      success: true,
+      data: { id: 1 },
+      meta: { read: [], changed: [] },
+      warnings: [],
     });
 
     const response = await edgePodFetch(makeRequest("/rpc/getUser"), mockEnv as any, ["getUser"]);

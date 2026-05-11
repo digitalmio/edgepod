@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createSelectProxy } from "./createSelectProxy";
+import { hashTableName } from "./hashTableName";
 import type { EdgePodSessionMap } from "../types";
 
 vi.mock("drizzle-orm", () => ({
@@ -191,7 +192,7 @@ describe("createSelectProxy", () => {
     proxy.leftJoin(joinTable, {});
 
     const session = activeSessions.get(sessionId);
-    expect(session?.listeningToTables.has("joined_table")).toBe(true);
+    expect(session?.listeningToTables.has(hashTableName("joined_table"))).toBe(true);
   });
 
   it("preserves proxy through chained method calls", () => {

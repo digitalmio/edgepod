@@ -3,7 +3,7 @@ import { updatePackage } from "write-package";
 import pkg from "../../package.json" with { type: "json" };
 
 const wranglerTypesCmd =
-  "wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts";
+  "edgepod migrations && wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts";
 
 export const addScriptsToPackageJson = async (rootPath: string) => {
   const packageJsonPath = `${rootPath}/package.json`;

@@ -13,7 +13,7 @@ export function registerQuery(tables: string[], swrKey: unknown[]): void {
   const next = new Map(current);
 
   for (const table of tables) {
-    const keys = new Set(next.get(table));
+    const keys = new Set(next.get(table) ?? []);
     keys.add(serializedKey);
     next.set(table, keys);
   }
@@ -27,7 +27,7 @@ export function deregisterQuery(tables: string[], swrKey: unknown[]): void {
   const next = new Map(current);
 
   for (const table of tables) {
-    const keys = new Set(next.get(table));
+    const keys = new Set(next.get(table) ?? []);
     keys.delete(serializedKey);
     if (keys.size === 0) {
       next.delete(table);

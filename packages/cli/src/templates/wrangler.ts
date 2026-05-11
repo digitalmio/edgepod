@@ -16,9 +16,6 @@ export const wranglerJsonTemplate = (opts: WranglerOptions): string => {
     compatibility_date: new Date("2026-05-01").toISOString().split("T")[0],
     compatibility_flags: ["nodejs_compat"],
     vars,
-    build: {
-      command: "edgepod migrations",
-    },
     durable_objects: {
       bindings: [{ name: "EDGEPOD_DO", class_name: "EdgePodEngine" }],
     },

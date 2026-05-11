@@ -3,6 +3,7 @@ import { RawDrizzleDb, EdgePodSessionMap } from "../types";
 import { checkResultWarnings } from "./checkResultWarnings";
 import { createSelectProxy } from "./createSelectProxy";
 import { createMutationProxy } from "./createMutationProxy";
+import { hashTableName } from "./hashTableName";
 import { recordMutationWithCascades } from "./recordMutation";
 import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
@@ -121,7 +122,7 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
             const tableApi = queryTarget[tableProp];
             if (!tableApi) return undefined;
             const session = activeSessions.get(sessionId);
-            if (session) session.listeningToTables.add(tableProp);
+            if (session) session.listeningToTables.add(hashTableName(tableProp));
             tablesRead.add(tableProp);
             return new Proxy(tableApi, {
               get(tableTarget: any, method: string) {
@@ -184,7 +185,7 @@ function trackWithRelations(
   if (!withOpt) return;
   for (const relation of Object.keys(withOpt)) {
     const session = activeSessions.get(sessionId);
-    if (session) session.listeningToTables.add(relation);
+    if (session) session.listeningToTables.add(hashTableName(relation));
     tablesRead.add(relation);
     trackWithRelations(
       withOpt[relation] as Record<string, unknown>,

@@ -20,7 +20,7 @@ export function useInternalQuery<T>(
   const ctx = useEdgePod();
 
   const key = useMemo(
-    () => (args === null ? null : (["edgepod", functionName, args] as unknown[])),
+    () => (args === null ? null : (["edgepod", functionName, args ?? null] as unknown[])),
     [functionName, args],
   );
 
@@ -62,6 +62,12 @@ export function useInternalQuery<T>(
       deregisterQuery(tables, swrKey);
     };
   }, [key, tablesDep]);
+
+  useEffect(() => {
+    if (ctx.wsStatus === "connected" && key) {
+      mutate();
+    }
+  }, [ctx.wsStatus, key, mutate]);
 
   return {
     data: result?.data,
