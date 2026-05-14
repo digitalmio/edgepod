@@ -21,8 +21,9 @@ export function recordWhereIds(
 ) {
   for (const wid of parsed.whereIds) {
     let table = wid.tableHint || "";
-    if (!table && parsed.tablesWritten.length === 1) {
-      table = parsed.tablesWritten[0];
+    if (!table) {
+      const first = parsed.tablesWritten[0];
+      if (first) table = first;
     }
     if (!table) continue;
     const pkCols = ctx.pkMap.get(table);
