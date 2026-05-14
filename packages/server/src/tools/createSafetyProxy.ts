@@ -1,6 +1,6 @@
 import { getTableName } from "drizzle-orm";
-import { hashTableName } from "./hashTableName";
 import { createBuilderProxy } from "./createBuilderProxy";
+import { addListener } from "./tracking";
 import type { EdgePodSessionMap } from "../types";
 
 const FORBIDDEN = ["run", "all", "get", "values", "execute"];
@@ -70,6 +70,7 @@ function createQueryApiProxy(queryObject: any, ctx: TrackContext) {
           if (method === "findMany")
             return (opts: Record<string, unknown> = {}) => {
               addListener(tableProp, ctx);
+              trackWithRelations(opts, ctx);
               const limit =
                 typeof opts.limit === "number" && Number.isFinite(opts.limit)
                   ? Math.max(0, Math.min(opts.limit, 1000))
@@ -87,6 +88,7 @@ function createQueryApiProxy(queryObject: any, ctx: TrackContext) {
           if (method === "findFirst")
             return (opts: Record<string, unknown> = {}) => {
               addListener(tableProp, ctx);
+              trackWithRelations(opts, ctx);
               return t.findFirst(opts);
             };
           const v = t[method];
@@ -97,8 +99,11 @@ function createQueryApiProxy(queryObject: any, ctx: TrackContext) {
   });
 }
 
-function addListener(table: string, ctx: TrackContext) {
-  if (table === "unknown") return;
-  ctx.activeSessions.get(ctx.sessionId)?.listeningToTables.add(hashTableName(table));
-  ctx.tablesRead.add(table);
+function trackWithRelations(opts: Record<string, unknown>, ctx: TrackContext) {
+  const withOpt = opts.with as Record<string, unknown> | undefined;
+  if (!withOpt) return;
+  for (const relation of Object.keys(withOpt)) {
+    addListener(relation, ctx);
+    trackWithRelations(withOpt[relation] as Record<string, unknown>, ctx);
+  }
 }

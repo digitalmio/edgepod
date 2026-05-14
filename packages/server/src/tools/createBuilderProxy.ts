@@ -79,16 +79,16 @@ export function createBuilderProxy(builder: any, ctx: TrackContext, config: Buil
 
           trackExec(b, ctx, config.tableName);
 
-          const method = b[prop] as Function;
-          const result = method.apply(b, args);
-
           if (prop === "then") {
-            const [resolve] = args as [(v: unknown) => void, ...unknown[]];
-            return (result as Promise<unknown>).then((res: unknown) => {
+            const [resolve, reject] = args as [(v: unknown) => void, (e: unknown) => void];
+            return b.then((res: unknown) => {
               warnRowLimit(res, ctx.warnings);
               resolve(res);
-            });
+            }, reject);
           }
+
+          const method = b[prop] as Function;
+          const result = method.apply(b, args);
           warnRowLimit(result, ctx.warnings);
           return result;
         };

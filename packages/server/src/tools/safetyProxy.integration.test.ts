@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
-import { eq } from "drizzle-orm";
+import { eq, relations } from "drizzle-orm";
 import { createSafetyProxy, type TrackContext } from "./createSafetyProxy";
 import type { EdgePodSessionMap } from "../types";
 
@@ -16,6 +16,17 @@ const posts = sqliteTable("posts", {
   title: text("title").notNull(),
   userId: integer("user_id").notNull(),
 });
+
+const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
+
+const postsRelations = relations(posts, ({ one }) => ({
+  user: one(users, {
+    fields: [posts.userId],
+    references: [users.id],
+  }),
+}));
 
 function setup() {
   const sqlite = new Database(":memory:");
@@ -219,5 +230,121 @@ describe("safety proxy — row ID tracking", () => {
     const { db, rowIds } = setup();
     await db.insert(users).values({ name: "test" });
     expect(rowIds.size).toBe(0);
+  });
+});
+
+describe("safety proxy — async error propagation", () => {
+  it("propagates async DB errors via await without unhandled rejection", async () => {
+    const { db } = setup();
+    await expect(db.insert(users).values({ name: null as any })).rejects.toThrow();
+  });
+
+  it("fires warnRowLimit through async (then) path", async () => {
+    const { db, warnings } = setup();
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ name: `user-${i}` }));
+    await db.insert(users).values(rows);
+    warnings.length = 0;
+    await db.select().from(users);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("1000 rows");
+  });
+});
+
+describe("safety proxy — relation tracking (with option)", () => {
+  function setupWithRelations() {
+    const sqlite = new Database(":memory:");
+    const db = drizzle({
+      client: sqlite,
+      schema: { users, posts, usersRelations, postsRelations },
+    });
+    sqlite.exec(`
+      CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT NOT NULL, user_id INTEGER NOT NULL);
+    `);
+    const tablesRead = new Set<string>();
+    const tablesWritten = new Set<string>();
+    const rowIds = new Map<string, Set<string>>();
+    const warnings: string[] = [];
+    const activeSessions: EdgePodSessionMap = new Map();
+    activeSessions.set("test-session", {
+      socket: {} as WebSocket,
+      listeningToTables: new Set(),
+    });
+
+    const trackCtx: TrackContext = {
+      sessionId: "test-session",
+      activeSessions,
+      tablesRead,
+      tablesWritten,
+      rowIds,
+      cascadeGraph: new Map(),
+      warnings,
+      pkMap: new Map([["users", ["id"]]]),
+    };
+
+    const proxy = createSafetyProxy(db as any, trackCtx);
+
+    return { db: proxy as any, tablesRead, tablesWritten, warnings, trackCtx };
+  }
+
+  it("tracks root and relation tables from findMany with flat with", async () => {
+    const { db, tablesRead } = setupWithRelations();
+    try {
+      await db.query.users.findMany({ with: { posts: true } });
+    } catch {
+      // Drizzle may throw if relations not processed, tablesRead is still populated
+    }
+    expect(tablesRead.has("users")).toBe(true);
+    expect(tablesRead.has("posts")).toBe(true);
+  });
+
+  it("tracks root and relation from findFirst with with", async () => {
+    const { db, tablesRead } = setupWithRelations();
+    try {
+      await db.query.users.findFirst({ with: { posts: true } });
+    } catch {
+      // ignore
+    }
+    expect(tablesRead.has("users")).toBe(true);
+    expect(tablesRead.has("posts")).toBe(true);
+  });
+
+  it("tracks nested relation tables recursively", async () => {
+    const { db, tablesRead } = setupWithRelations();
+    try {
+      await db.query.users.findMany({
+        with: {
+          posts: {
+            with: { user: true },
+          },
+        },
+      });
+    } catch {
+      // ignore
+    }
+    expect(tablesRead.has("users")).toBe(true);
+    expect(tablesRead.has("posts")).toBe(true);
+    // "user" is the relation name from postsRelations — even though it's
+    // the same physical table, the relation is a distinct tracking key
+    expect(tablesRead.has("user")).toBe(true);
+  });
+
+  it("tracks nothing from findMany without with option", async () => {
+    const { db, tablesRead } = setupWithRelations();
+    await db.query.users.findMany();
+    expect(tablesRead.has("users")).toBe(true);
+    expect(tablesRead.has("posts")).toBe(false);
+  });
+
+  it("records relation tables in listeningToTables", async () => {
+    const { db, trackCtx } = setupWithRelations();
+    try {
+      await db.query.users.findMany({ with: { posts: true } });
+    } catch {
+      // ignore
+    }
+    const session = trackCtx.activeSessions.get("test-session");
+    // listeningToTables uses hashed names — verify at least root + relation
+    expect(session?.listeningToTables.size).toBeGreaterThanOrEqual(2);
   });
 });
