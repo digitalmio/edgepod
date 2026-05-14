@@ -20,8 +20,13 @@ export function recordWhereIds(
   ctx: TrackContext,
 ) {
   for (const wid of parsed.whereIds) {
-    const table = wid.tableHint || "";
+    let table = wid.tableHint || "";
+    if (!table && parsed.tablesWritten.length === 1) {
+      table = parsed.tablesWritten[0];
+    }
     if (!table) continue;
+    const pkCols = ctx.pkMap.get(table);
+    if (pkCols && !pkCols.includes(wid.column)) continue;
     for (const idx of wid.paramIndices) {
       if (idx < params.length) {
         const hashed = hashTableName(String(params[idx]));

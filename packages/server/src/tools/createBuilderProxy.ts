@@ -37,7 +37,7 @@ export function createBuilderProxy(builder: any, ctx: TrackContext, config: Buil
       if (prop === "withoutWhere" && (config.type === "update" || config.type === "delete"))
         return () => {
           ctx.warnings.push(`[EdgePod] Unfiltered ${config.type} executed via .withoutWhere().`);
-          return wrap(target.withoutWhere(), ctx, config, { ...state, withoutWhereSet: true });
+          return wrap(target, ctx, config, { ...state, withoutWhereSet: true });
         };
 
       // Safety: bulk insert limit

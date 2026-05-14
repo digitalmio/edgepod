@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
-import { eq, relations, sql } from "drizzle-orm";
+import { eq, inArray, relations, sql } from "drizzle-orm";
 import { createSafetyProxy, type TrackContext } from "./createSafetyProxy";
 import { createTrackedRawDb } from "./createTrackedRawDb";
 import type { EdgePodSessionMap } from "../types";
@@ -407,7 +407,10 @@ describe("safety proxy — cascade isolation", () => {
       rowIds,
       cascadeGraph,
       warnings,
-      pkMap: new Map([["users", ["id"]]]),
+      pkMap: new Map([
+        ["users", ["id"]],
+        ["posts", ["id"]],
+      ]),
     };
 
     const proxy = createSafetyProxy(db as any, trackCtx);
@@ -449,5 +452,104 @@ describe("safety proxy — cascade isolation", () => {
     rawDb.run(sql`INSERT INTO users (name) VALUES (${"test"})`);
     expect(tablesWritten.has("users")).toBe(true);
     expect(tablesWritten.has("posts")).toBe(false);
+  });
+});
+
+describe("safety proxy — .withoutWhere() escape hatch", () => {
+  it("allows update without WHERE via .withoutWhere()", async () => {
+    const { db, tablesWritten, warnings } = setup();
+    const result = await db.update(users).set({ name: "changed" }).withoutWhere().run();
+    expect(result).toBeDefined();
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("Unfiltered update");
+    expect(warnings[0]).toContain(".withoutWhere()");
+  });
+
+  it("allows delete without WHERE via .withoutWhere()", async () => {
+    const { db, tablesWritten, warnings } = setup();
+    const result = await db.delete(users).withoutWhere().run();
+    expect(result).toBeDefined();
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("Unfiltered delete");
+    expect(warnings[0]).toContain(".withoutWhere()");
+  });
+});
+
+describe("safety proxy — row ID PK filtering", () => {
+  function setupWithPkMap() {
+    const sqlite = new Database(":memory:");
+    const db = drizzle({ client: sqlite, schema: { users } });
+    sqlite.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`);
+    const tablesRead = new Set<string>();
+    const tablesWritten = new Set<string>();
+    const rowIds = new Map<string, Set<string>>();
+    const warnings: string[] = [];
+    const activeSessions: EdgePodSessionMap = new Map();
+    activeSessions.set("test-session", {
+      socket: {} as WebSocket,
+      listeningToTables: new Set(),
+    });
+
+    const trackCtx: TrackContext = {
+      sessionId: "test-session",
+      activeSessions,
+      tablesRead,
+      tablesWritten,
+      rowIds,
+      cascadeGraph: new Map(),
+      warnings,
+      pkMap: new Map([["users", ["id"]]]),
+    };
+
+    const proxy = createSafetyProxy(db as any, trackCtx);
+
+    return { db: proxy as any, rowIds, tablesWritten };
+  }
+
+  it("records row ID for WHERE on PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db.update(users).set({ name: "changed" }).where(eq(users.id, 42)).run();
+    expect(rowIds.has("users")).toBe(true);
+    expect(rowIds.get("users")!.size).toBe(1);
+  });
+
+  it("does NOT record row ID for WHERE on non-PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db.update(users).set({ name: "changed" }).where(eq(users.name, "John")).run();
+    expect(rowIds.size).toBe(0);
+  });
+
+  it("records row ID for DELETE on PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db.delete(users).where(eq(users.id, 7)).run();
+    expect(rowIds.has("users")).toBe(true);
+    expect(rowIds.get("users")!.size).toBe(1);
+  });
+
+  it("does NOT record row ID for DELETE on non-PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db.delete(users).where(eq(users.name, "John")).run();
+    expect(rowIds.size).toBe(0);
+  });
+
+  it("records row ID for WHERE IN on PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db
+      .delete(users)
+      .where(inArray(users.id, [1, 2, 3]))
+      .run();
+    expect(rowIds.has("users")).toBe(true);
+    expect(rowIds.get("users")!.size).toBe(3);
+  });
+
+  it("does NOT record row ID for WHERE IN on non-PK column", async () => {
+    const { db, rowIds } = setupWithPkMap();
+    await db
+      .delete(users)
+      .where(inArray(users.name, ["Alice", "Bob"]))
+      .run();
+    expect(rowIds.size).toBe(0);
   });
 });
