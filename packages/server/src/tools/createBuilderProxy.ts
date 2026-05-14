@@ -77,7 +77,7 @@ export function createBuilderProxy(builder: any, ctx: TrackContext, config: Buil
           let b = target;
           if (config.type === "select" && !state.limitSet) b = target.limit(MAX_LIMIT);
 
-          trackExec(b, ctx, config.tableName);
+          trackExec(b, ctx, config.tableName, config.type);
 
           if (prop === "then") {
             const [resolve, reject] = args as [(v: unknown) => void, (e: unknown) => void];

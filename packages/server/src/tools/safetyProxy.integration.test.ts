@@ -376,3 +376,78 @@ describe("safety proxy — raw SQL tracking", () => {
     expect(tablesRead.has("users")).toBe(true);
   });
 });
+
+describe("safety proxy — cascade isolation", () => {
+  function setupWithCascade() {
+    const sqlite = new Database(":memory:");
+    const db = drizzle({ client: sqlite, schema: { users, posts } });
+    sqlite.exec(`
+      CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT NOT NULL, user_id INTEGER NOT NULL);
+    `);
+    const tablesRead = new Set<string>();
+    const tablesWritten = new Set<string>();
+    const rowIds = new Map<string, Set<string>>();
+    const warnings: string[] = [];
+    const activeSessions: EdgePodSessionMap = new Map();
+    activeSessions.set("test-session", {
+      socket: {} as WebSocket,
+      listeningToTables: new Set(),
+    });
+
+    // Cascade graph: users → posts (simulating FK with onDelete: cascade)
+    const cascadeGraph = new Map<string, Set<string>>();
+    cascadeGraph.set("users", new Set(["posts"]));
+
+    const trackCtx: TrackContext = {
+      sessionId: "test-session",
+      activeSessions,
+      tablesRead,
+      tablesWritten,
+      rowIds,
+      cascadeGraph,
+      warnings,
+      pkMap: new Map([["users", ["id"]]]),
+    };
+
+    const proxy = createSafetyProxy(db as any, trackCtx);
+    const rawDb = createTrackedRawDb(db as any, trackCtx);
+
+    return { db: proxy as any, rawDb, tablesRead, tablesWritten, warnings, trackCtx };
+  }
+
+  it("does NOT cascade on insert", async () => {
+    const { db, tablesWritten } = setupWithCascade();
+    await db.insert(users).values({ name: "test" });
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(tablesWritten.has("posts")).toBe(false);
+  });
+
+  it("does NOT cascade on update", async () => {
+    const { db, tablesWritten } = setupWithCascade();
+    await db.update(users).set({ name: "x" }).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(tablesWritten.has("posts")).toBe(false);
+  });
+
+  it("DOES cascade on delete", async () => {
+    const { db, tablesWritten } = setupWithCascade();
+    await db.delete(users).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(tablesWritten.has("posts")).toBe(true);
+  });
+
+  it("tracks raw SQL delete with cascade", async () => {
+    const { rawDb, tablesWritten } = setupWithCascade();
+    rawDb.run(sql`DELETE FROM users WHERE id = 1`);
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(tablesWritten.has("posts")).toBe(true);
+  });
+
+  it("tracks raw SQL insert without cascade", async () => {
+    const { rawDb, tablesWritten } = setupWithCascade();
+    rawDb.run(sql`INSERT INTO users (name) VALUES (${"test"})`);
+    expect(tablesWritten.has("users")).toBe(true);
+    expect(tablesWritten.has("posts")).toBe(false);
+  });
+});

@@ -36,15 +36,27 @@ export function recordWhereIds(
   }
 }
 
-export function trackExec(builder: any, ctx: TrackContext, tableHint?: string) {
+export function trackExec(builder: any, ctx: TrackContext, tableHint?: string, queryType?: string) {
   try {
     const { sql, params } = builder.toSQL();
     const parsed = parseSqlTracking(sql, params);
     for (const t of parsed.tablesRead) addListener(t, ctx);
-    for (const t of parsed.tablesWritten) cascadeWrite(t, ctx.tablesWritten, ctx.cascadeGraph);
+    for (const t of parsed.tablesWritten) {
+      if (parsed.queryType === "delete") {
+        cascadeWrite(t, ctx.tablesWritten, ctx.cascadeGraph);
+      } else {
+        ctx.tablesWritten.add(t);
+      }
+    }
     recordWhereIds(parsed, params, ctx);
   } catch {
-    if (tableHint) cascadeWrite(tableHint, ctx.tablesWritten, ctx.cascadeGraph);
+    if (tableHint) {
+      if (queryType === "delete") {
+        cascadeWrite(tableHint, ctx.tablesWritten, ctx.cascadeGraph);
+      } else {
+        ctx.tablesWritten.add(tableHint);
+      }
+    }
   }
 }
 
