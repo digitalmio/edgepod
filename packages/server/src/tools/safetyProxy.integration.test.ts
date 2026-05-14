@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
-import { eq, relations } from "drizzle-orm";
+import { eq, relations, sql } from "drizzle-orm";
 import { createSafetyProxy, type TrackContext } from "./createSafetyProxy";
+import { createTrackedRawDb } from "./createTrackedRawDb";
 import type { EdgePodSessionMap } from "../types";
 
 const users = sqliteTable("users", {
@@ -57,8 +58,9 @@ function setup() {
   };
 
   const proxy = createSafetyProxy(db as any, trackCtx);
+  const rawDb = createTrackedRawDb(db as any, trackCtx);
 
-  return { db: proxy as any, tablesRead, tablesWritten, rowIds, warnings, trackCtx };
+  return { db: proxy as any, rawDb, tablesRead, tablesWritten, rowIds, warnings, trackCtx };
 }
 
 describe("safety proxy — limit enforcement", () => {
@@ -346,5 +348,31 @@ describe("safety proxy — relation tracking (with option)", () => {
     const session = trackCtx.activeSessions.get("test-session");
     // listeningToTables uses hashed names — verify at least root + relation
     expect(session?.listeningToTables.size).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("safety proxy — raw SQL tracking", () => {
+  it("tracks writes via Drizzle SQL template in rawDb.run", async () => {
+    const { rawDb, tablesWritten } = setup();
+    rawDb.run(sql`INSERT INTO users (name) VALUES (${"test"})`);
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks reads via Drizzle SQL template in rawDb.all", async () => {
+    const { rawDb, tablesRead } = setup();
+    rawDb.all(sql`SELECT * FROM users`);
+    expect(tablesRead.has("users")).toBe(true);
+  });
+
+  it("tracks writes via raw string SQL in rawDb.run", async () => {
+    const { rawDb, tablesWritten } = setup();
+    rawDb.run("INSERT INTO users (name) VALUES ('test')");
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks reads via raw string SQL in rawDb.all", async () => {
+    const { rawDb, tablesRead } = setup();
+    rawDb.all("SELECT * FROM users");
+    expect(tablesRead.has("users")).toBe(true);
   });
 });
