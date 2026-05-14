@@ -31,6 +31,7 @@ export type RpcRequest = {
 export type RpcMeta = {
   read: string[];
   changed: string[];
+  rows?: Record<string, string[]>;
 };
 
 export type RpcResponse = {
@@ -67,9 +68,8 @@ export type EdgePodContext<
 
   log: Logger; // A per-request logger with traceId bound — use for structured, traceable output
 
-  // Manual Reactivity Escape Hatches
+  // Manual Reactivity Escape Hatch
   subscribeTo: (tables: string[]) => void;
-  invalidate: (tables: string[]) => void;
 
   // Environment Variables (for Stripe keys, Resend API, etc.)
   env: Cloudflare.Env & TEnv;

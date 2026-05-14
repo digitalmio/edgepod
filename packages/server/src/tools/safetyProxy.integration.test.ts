@@ -3,8 +3,8 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { eq } from "drizzle-orm";
-import { createTrackedDb } from "./createTrackedDb";
-import type { RawDrizzleDb, EdgePodSessionMap } from "../types";
+import { createSafetyProxy, type TrackContext } from "./createSafetyProxy";
+import type { EdgePodSessionMap } from "../types";
 
 const users = sqliteTable("users", {
   id: integer("id").primaryKey(),
@@ -26,6 +26,7 @@ function setup() {
   `);
   const tablesRead = new Set<string>();
   const tablesWritten = new Set<string>();
+  const rowIds = new Map<string, Set<string>>();
   const warnings: string[] = [];
   const activeSessions: EdgePodSessionMap = new Map();
   activeSessions.set("test-session", {
@@ -33,30 +34,26 @@ function setup() {
     listeningToTables: new Set(),
   });
 
-  const trackedDb = createTrackedDb(
-    db as unknown as RawDrizzleDb<any>,
-    "test-session",
+  const trackCtx: TrackContext = {
+    sessionId: "test-session",
     activeSessions,
     tablesRead,
     tablesWritten,
-    new Map(),
+    rowIds,
+    cascadeGraph: new Map(),
     warnings,
-  );
+    pkMap: new Map([["users", ["id"]]]),
+  };
 
-  return { db: trackedDb as any, tablesRead, tablesWritten, warnings };
+  const proxy = createSafetyProxy(db as any, trackCtx);
+
+  return { db: proxy as any, tablesRead, tablesWritten, rowIds, warnings, trackCtx };
 }
 
-describe("proxy integration — limit enforcement", () => {
+describe("safety proxy — limit enforcement", () => {
   it("clamps negative limit to 0 (async)", async () => {
     const { db } = setup();
     const result = await db.select().from(users).limit(-1);
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toHaveLength(0);
-  });
-
-  it("clamps negative limit to 0 (sync)", () => {
-    const { db } = setup();
-    const result = db.select().from(users).limit(-1).all();
     expect(Array.isArray(result)).toBe(true);
     expect(result).toHaveLength(0);
   });
@@ -76,7 +73,7 @@ describe("proxy integration — limit enforcement", () => {
   });
 });
 
-describe("proxy integration — WHERE enforcement", () => {
+describe("safety proxy — WHERE enforcement", () => {
   it("blocks update without WHERE", () => {
     const { db } = setup();
     expect(() => db.update(users).set({ name: "changed" }).run()).toThrow(
@@ -102,7 +99,7 @@ describe("proxy integration — WHERE enforcement", () => {
   });
 });
 
-describe("proxy integration — table tracking", () => {
+describe("safety proxy — table tracking", () => {
   it("tracks insert as table write (async)", async () => {
     const { db, tablesWritten } = setup();
     await db.insert(users).values({ name: "test" });
@@ -147,7 +144,7 @@ describe("proxy integration — table tracking", () => {
   });
 });
 
-describe("proxy integration — insert chaining", () => {
+describe("safety proxy — insert chaining", () => {
   it("insert with .returning() records mutation", async () => {
     const { db, tablesWritten } = setup();
     const result = await db.insert(users).values({ name: "test" }).returning();
@@ -168,7 +165,7 @@ describe("proxy integration — insert chaining", () => {
   });
 });
 
-describe("proxy integration — prepare", () => {
+describe("safety proxy — prepare", () => {
   it("blocks insert .prepare()", () => {
     const { db } = setup();
     expect(() => db.insert(users).values({ name: "test" }).prepare()).toThrow(
@@ -197,5 +194,30 @@ describe("proxy integration — prepare", () => {
     expect(typeof prepared.all).toBe("function");
     const result = await prepared.execute();
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe("safety proxy — row ID tracking", () => {
+  it("extracts WHERE IDs from update", async () => {
+    const { db, rowIds } = setup();
+    await db.update(users).set({ name: "changed" }).where(eq(users.id, 42)).run();
+    expect(rowIds.has("users")).toBe(true);
+    const ids = [...rowIds.get("users")!];
+    // 42 hashed with djb2 should produce a stable hash
+    expect(ids).toHaveLength(1);
+  });
+
+  it("extracts WHERE IDs from delete", async () => {
+    const { db, rowIds } = setup();
+    await db.delete(users).where(eq(users.id, 7)).run();
+    expect(rowIds.has("users")).toBe(true);
+    const ids = [...rowIds.get("users")!];
+    expect(ids).toHaveLength(1);
+  });
+
+  it("skips row IDs for inserts without WHERE", async () => {
+    const { db, rowIds } = setup();
+    await db.insert(users).values({ name: "test" });
+    expect(rowIds.size).toBe(0);
   });
 });

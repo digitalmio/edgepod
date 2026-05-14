@@ -2,7 +2,7 @@ import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
 import type { RpcRequest } from "../types";
 import { verifyJwt } from "./auth";
-import { hashMetaTableNames } from "../tools/hashTableName";
+import { hashMetaTableNames, hashTableName } from "../tools/hashTableName";
 import { ResultAsync } from "neverthrow";
 
 // EdgePod is origin-agnostic by design. Every request is authenticated via the
@@ -140,11 +140,19 @@ export const edgePodFetch = async (
     });
 
     if (result.success) {
+      const rowsMeta = result.meta.rows
+        ? Object.fromEntries(
+            Object.entries(result.meta.rows).map(([t, ids]) => [hashTableName(t), ids]),
+          )
+        : undefined;
       return Response.json(
         {
           success: true,
           data: result.data,
-          _meta: { t: hashMetaTableNames(result.meta.read) },
+          _meta: {
+            t: hashMetaTableNames(result.meta.read),
+            ...(rowsMeta ? { r: rowsMeta } : {}),
+          },
           ...(result.warnings.length > 0 ? { warnings: result.warnings } : {}),
         },
         { headers: serverHeader },

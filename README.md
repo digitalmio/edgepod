@@ -208,12 +208,12 @@ The provider manages the WebSocket lifecycle. When another user inserts a row, y
 
 EdgePod helps you stay within Durable Object limits with lightweight, always-on guards:
 
-| Guard                 | What it does                                                                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Result limit**      | Queries are capped at **1 000 rows**. If a query returns exactly 1 000 rows, a warning is logged to paginate with `.limit()` and `.offset()`.                                                     |
-| **WHERE enforcement** | `UPDATE` and `DELETE` without a `.where()` clause are blocked. If you really mean to affect every row, chain `.withoutWhere()` to opt out per-query.                                              |
-| **Raw SQL guard**     | Dangerous raw methods like `db.run()` and `db.get()` are blocked on the tracked database instance. Use `ctx.unsafeRawDb` explicitly if you need raw access, and call `ctx.invalidate()` manually. |
-| **Bulk insert limit** | `insert().values()` arrays are capped at 1 000 rows to avoid oversized writes.                                                                                                                    |
+| Guard                 | What it does                                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Result limit**      | Queries are capped at **1 000 rows**. If a query returns exactly 1 000 rows, a warning is logged to paginate with `.limit()` and `.offset()`.                                                                  |
+| **WHERE enforcement** | `UPDATE` and `DELETE` without a `.where()` clause are blocked. If you really mean to affect every row, chain `.withoutWhere()` to opt out per-query.                                                           |
+| **Raw SQL guard**     | Dangerous raw methods like `db.run()` and `db.get()` are blocked on the tracked database instance. Use `ctx.unsafeRawDb` explicitly if you need raw access — raw SQL is automatically tracked via SQL parsing. |
+| **Bulk insert limit** | `insert().values()` arrays are capped at 1 000 rows to avoid oversized writes.                                                                                                                                 |
 
 These are not configuration options — they are designed to catch accidental misuse early, while giving you explicit escape hatches when you need them.
 

@@ -112,6 +112,9 @@ importers:
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      sqlite3-parser:
+        specifier: ^0.7.1
+        version: 0.7.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
@@ -3149,6 +3152,10 @@ packages:
   spdx-license-ids@3.0.23:
     resolution: {integrity: sha512-CWLcCCH7VLu13TgOH+r8p1O/Znwhqv/dbb6lqWy67G+pT1kHmeD/+V36AVb/vq8QMIQwVShJ6Ssl5FPh0fuSdw==}
 
+  sqlite3-parser@0.7.1:
+    resolution: {integrity: sha512-+KcAIcmD9xk4Sz3hNsEI7QEGAMGl3s5PyigIf6ri/u1DzAuAmi5YZInjtnXKqHvx9ySl5e0RYILfCVhTdAeKJg==}
+    hasBin: true
+
   sqlstring@2.3.3:
     resolution: {integrity: sha512-qC9iz2FlN7DQl3+wjwn3802RTyjCx7sDvfQEXchwa6CWOx07/WVfh91gBmQ9fahw8snwGEWU3xGzOt4tFyHLxg==}
     engines: {node: '>= 0.6'}
@@ -6098,6 +6105,8 @@ snapshots:
       spdx-license-ids: 3.0.23
 
   spdx-license-ids@3.0.23: {}
+
+  sqlite3-parser@0.7.1: {}
 
   sqlstring@2.3.3:
     optional: true

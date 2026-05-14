@@ -1,8 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
-import { createTrackedDb } from "../tools/createTrackedDb";
+import { createSafetyProxy } from "../tools/createSafetyProxy";
+import { createTrackedRawDb } from "../tools/createTrackedRawDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
+import { buildPkMap } from "../tools/buildPkMap";
 import { initJwtSigner, getJwtSigner } from "./auth";
 import { initLogger, createLogger } from "./logger";
 import type { EdgePodSessionMap, EdgePodContext, RpcRequest, RpcMeta, JsonValue } from "../types";
@@ -19,6 +21,7 @@ export class BaseEdgePodEngine extends DurableObject {
   private rawDb: ReturnType<typeof drizzle>;
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
+  private pkMap: Map<string, string[]> = new Map();
   protected userFunctions: Record<string, (...args: any[]) => Promise<JsonValue> | JsonValue> = {};
   protected schema: Record<string, unknown> = {};
   protected migrations: {
@@ -43,6 +46,7 @@ export class BaseEdgePodEngine extends DurableObject {
       this.restoreActiveSessions();
 
       this.cascadeGraph = buildCascadeGraph(this.schema);
+      this.pkMap = buildPkMap(this.schema);
 
       await initLogger();
       await initJwtSigner(this.env as any).match(
@@ -125,26 +129,31 @@ export class BaseEdgePodEngine extends DurableObject {
     // Prepare the read/write trackers for this specific run
     const tablesRead = new Set<string>();
     const tablesWritten = new Set<string>();
+    const rowIds = new Map<string, Set<string>>();
     const warnings: string[] = [];
 
     // When reactive is false, pass an empty session map so no table subscriptions are registered
-    const sessionMap = reactive ? this.activeSessions : new Map();
+    const activeSessions = reactive ? this.activeSessions : new Map();
 
-    // Instantiate the Proxy
-    const dbProxy = createTrackedDb(
-      this.rawDb,
+    // Shared tracking context for this RPC invocation
+    const trackCtx = {
       sessionId,
-      sessionMap,
+      activeSessions,
       tablesRead,
       tablesWritten,
-      this.cascadeGraph,
+      cascadeGraph: this.cascadeGraph,
       warnings,
-    );
+      rowIds,
+      pkMap: this.pkMap,
+    };
+
+    // Instantiate the Proxy with SQL parser-based tracking
+    const dbProxy = createSafetyProxy(this.rawDb, trackCtx);
 
     // Build the Context
     const edgepodCtx: EdgePodContext<any, any, Record<string, any>> = {
       db: dbProxy as any,
-      unsafeRawDb: this.rawDb,
+      unsafeRawDb: createTrackedRawDb(this.rawDb, trackCtx),
       user,
       env: this.env,
       headers,
@@ -161,7 +170,6 @@ export class BaseEdgePodEngine extends DurableObject {
           });
         }
       },
-      invalidate: (tables: string[]) => tables.forEach((t: string) => tablesWritten.add(t)),
       set: (key: string, value: any) => variableStore.set(key, value),
       get: (key: string) => variableStore.get(key) as any,
     };
@@ -175,10 +183,18 @@ export class BaseEdgePodEngine extends DurableObject {
         this.broadcastInvalidations(hashedTableNames);
       }
 
+      const rowsMeta: Record<string, string[]> = {};
+      for (const [table, ids] of rowIds) {
+        rowsMeta[table] = [...ids];
+      }
       return {
         success: true,
         data,
-        meta: { read: [...tablesRead], changed: [...tablesWritten] },
+        meta: {
+          read: [...tablesRead],
+          changed: [...tablesWritten],
+          ...(Object.keys(rowsMeta).length > 0 ? { rows: rowsMeta } : {}),
+        },
         warnings,
       };
     } catch (e) {

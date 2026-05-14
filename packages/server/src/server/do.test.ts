@@ -24,12 +24,16 @@ vi.mock("drizzle-orm/durable-sqlite/migrator", () => ({
   migrate: vi.fn(),
 }));
 
-vi.mock("../tools/createTrackedDb", () => ({
-  createTrackedDb: vi.fn(),
+vi.mock("../tools/createSafetyProxy", () => ({
+  createSafetyProxy: vi.fn(),
 }));
 
 vi.mock("../tools/buildCascadeGraph", () => ({
   buildCascadeGraph: vi.fn(() => new Map()),
+}));
+
+vi.mock("../tools/buildPkMap", () => ({
+  buildPkMap: vi.fn(() => new Map()),
 }));
 
 vi.mock("./auth", () => ({
