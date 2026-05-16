@@ -42,7 +42,7 @@ function makeCursor<T>(
 
   let rows: T[];
   try {
-    rows = params.length > 0 ? stmt.all(...params) : stmt.all();
+    rows = (params.length > 0 ? stmt.all(...params) : stmt.all()) as T[];
   } catch {
     // Non-SELECT statement (INSERT, UPDATE, DELETE, CREATE, etc.)
     if (params.length > 0) {
@@ -57,9 +57,9 @@ function makeCursor<T>(
   const iter: IterableIterator<T> = {
     next() {
       if (index < rows.length) {
-        return { done: false, value: rows[index++] };
+        return { done: false, value: rows[index++] } as IteratorResult<T>;
       }
-      return { done: true, value: undefined };
+      return { done: true, value: undefined } as IteratorResult<T>;
     },
     [Symbol.iterator]() {
       return iter;

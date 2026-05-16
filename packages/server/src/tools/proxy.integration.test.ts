@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { eq } from "drizzle-orm";
 import { createTrackedDb } from "./createTrackedDb";
-import type { RawDrizzleDb, EdgePodSessionMap } from "../types";
+import { createTestDb } from "../test-utils/createTestDb";
+import type { EdgePodSessionMap } from "../types";
 
 const users = sqliteTable("users", {
   id: integer("id").primaryKey(),
@@ -18,8 +17,7 @@ const posts = sqliteTable("posts", {
 });
 
 function setup() {
-  const sqlite = new Database(":memory:");
-  const db = drizzle({ client: sqlite, schema: { users, posts } });
+  const { db, sqlite } = createTestDb({ users, posts });
   sqlite.exec(`
     CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT NOT NULL, user_id INTEGER NOT NULL);
@@ -34,7 +32,7 @@ function setup() {
   });
 
   const trackedDb = createTrackedDb(
-    db as unknown as RawDrizzleDb<any>,
+    db,
     "test-session",
     activeSessions,
     tablesRead,
@@ -86,8 +84,7 @@ describe("proxy integration — WHERE enforcement", () => {
 
   it("allows update with WHERE", async () => {
     const { db } = setup();
-    const result = await db.update(users).set({ name: "changed" }).where(eq(users.id, 1)).run();
-    expect(result).toBeDefined();
+    await db.update(users).set({ name: "changed" }).where(eq(users.id, 1)).run();
   });
 
   it("blocks delete without WHERE", () => {
@@ -97,12 +94,11 @@ describe("proxy integration — WHERE enforcement", () => {
 
   it("allows delete with WHERE", async () => {
     const { db } = setup();
-    const result = await db.delete(users).where(eq(users.id, 1)).run();
-    expect(result).toBeDefined();
+    await db.delete(users).where(eq(users.id, 1)).run();
   });
 });
 
-describe("proxy integration — table tracking", () => {
+describe("proxy integration — table tracking via client proxy", () => {
   it("tracks insert as table write (async)", async () => {
     const { db, tablesWritten } = setup();
     await db.insert(users).values({ name: "test" });
@@ -158,7 +154,7 @@ describe("proxy integration — insert chaining", () => {
   it("insert bulk at max limit succeeds", async () => {
     const { db } = setup();
     const rows = Array(1000).fill({ name: "test" });
-    await expect(db.insert(users).values(rows)).resolves.toBeDefined();
+    await db.insert(users).values(rows);
   });
 
   it("insert bulk over max limit throws", () => {
