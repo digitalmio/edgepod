@@ -1,4 +1,22 @@
-import { parseStmt, traverse } from "sqlite3-parser";
+import {
+  type AstNode,
+  type BinaryExpr,
+  type DeleteStmt,
+  type Expr,
+  type FromClause,
+  type Id,
+  type InListExpr,
+  type InsertStmt,
+  type JoinedSelectTable,
+  type Name,
+  type QualifiedExpr,
+  type QualifiedName,
+  type SelectTable,
+  type UpdateStmt,
+  type VariableExpr,
+  parseStmt,
+  traverse,
+} from "sqlite3-parser";
 
 export type ParsedQuery = {
   queryType: "select" | "insert" | "update" | "delete" | "unknown";
@@ -7,11 +25,33 @@ export type ParsedQuery = {
   whereIds: Array<{ tableHint: string; column: string; paramIndices: number[] }>;
 };
 
-function getTableName(node: any): string | null {
-  if (!node) return null;
-  if (node.tblName?.objName?.text) return node.tblName.objName.text;
-  if (node.objName?.text) return node.objName.text;
+function getNameText(n: Name): string {
+  return n.text;
+}
+
+function getQualifiedName(qn: QualifiedName): string {
+  return getNameText(qn.objName);
+}
+
+function getTableNameFromStmt(stmt: DeleteStmt | InsertStmt | UpdateStmt): string | null {
+  return getQualifiedName(stmt.tblName);
+}
+
+function getTableNameFromSelectTable(st: SelectTable): string | null {
+  if (st.type === "TableSelectTable" || st.type === "TableCallSelectTable") {
+    return getQualifiedName(st.tblName);
+  }
   return null;
+}
+
+function getTableNameFromFromClause(from: FromClause): string | null {
+  const select = from.select;
+  if (!select) return null;
+  return getTableNameFromSelectTable(select);
+}
+
+function getTableNameFromJoined(j: JoinedSelectTable): string | null {
+  return getTableNameFromSelectTable(j.table);
 }
 
 export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
@@ -20,7 +60,7 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
     return { queryType: "unknown", tablesRead: [], tablesWritten: [], whereIds: [] };
   }
 
-  const root = result.root as any;
+  const root = result.root;
   let queryType: ParsedQuery["queryType"] = "unknown";
   let mainTable: string | null = null;
 
@@ -28,46 +68,38 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
     queryType = "select";
   } else if (root.type === "InsertStmt") {
     queryType = "insert";
-    mainTable = getTableName(root);
+    mainTable = getTableNameFromStmt(root);
   } else if (root.type === "UpdateStmt") {
     queryType = "update";
-    mainTable = getTableName(root);
+    mainTable = getTableNameFromStmt(root);
   } else if (root.type === "DeleteStmt") {
     queryType = "delete";
-    mainTable = getTableName(root);
+    mainTable = getTableNameFromStmt(root);
   }
 
   // Collect all CTE aliases so we can exclude them from the table list
   const cteAliases = new Set<string>();
   traverse(root, {
-    enter(node: any) {
-      if (node.type === "CommonTableExpr" && node.tblName?.text) {
-        cteAliases.add(node.tblName.text);
+    enter(node) {
+      if (node.type === "CommonTableExpr") {
+        cteAliases.add(getNameText(node.tblName));
       }
     },
   });
 
   // Collect ALL table references from every SelectFrom node in the AST.
-  // SelectFrom appears in top-level SELECTs (SelectStmt → body → select),
-  // subqueries (Select → select), UNION compounds (CompoundSelect → select),
-  // and INSERT...SELECT (InsertStmt → ... → Select → select → SelectFrom).
   const allTables = new Set<string>();
   traverse(root, {
-    enter(node: any) {
-      if (node.type !== "SelectFrom" || !node.from) return;
-      const items = node.from.select
-        ? Array.isArray(node.from.select)
-          ? node.from.select
-          : [node.from.select]
-        : [];
-      for (const item of items) {
-        const name = getTableName(item);
-        if (name && !cteAliases.has(name)) allTables.add(name);
-      }
-      if (node.from.joins) {
-        for (const join of node.from.joins) {
-          const name = getTableName(join.table);
-          if (name && !cteAliases.has(name)) allTables.add(name);
+    enter(node) {
+      if (node.type !== "SelectFrom") return;
+      const from = node.from;
+      if (!from) return;
+      const name = getTableNameFromFromClause(from);
+      if (name && !cteAliases.has(name)) allTables.add(name);
+      if (from.joins) {
+        for (const join of from.joins) {
+          const joinName = getTableNameFromJoined(join);
+          if (joinName && !cteAliases.has(joinName)) allTables.add(joinName);
         }
       }
     },
@@ -87,11 +119,11 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
   }
 
   // Map ? positions to param indices by collecting all VariableExpr order
-  const varExprs: Array<{ offset: number; node: any }> = [];
+  const varExprs: Array<{ offset: number; node: VariableExpr }> = [];
   traverse(root, {
-    enter(node: any) {
+    enter(node) {
       if (node.type === "VariableExpr" && node.name === "?") {
-        varExprs.push({ offset: node.span?.offset ?? -1, node });
+        varExprs.push({ offset: node.span.offset, node });
       }
     },
   });
@@ -103,31 +135,34 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
   });
 
   // Collect WHERE conditions with param references
-  const visited = new Set<any>();
+  const visited = new Set<AstNode>();
   traverse(root, {
-    enter(node: any, _parent?: any) {
+    enter(node, _parent) {
       if (visited.has(node)) return;
       visited.add(node);
 
       // "id = ?" pattern
       if (node.type === "BinaryExpr" && node.op === "Equals") {
-        const columnName = extractColumnName(node.left);
+        const be = node as BinaryExpr;
+        const columnName = extractColumnName(be.left);
         if (!columnName) return;
-        const paramOffset = extractParamOffset(node.right);
+        const paramOffset = extractParamOffset(be.right);
         if (paramOffset === -1) return;
         const pIdx = paramIndexForOffset.get(paramOffset);
         if (pIdx !== undefined && pIdx < params.length) {
-          const tableHint = extractTableHint(node.left);
+          const tableHint = extractTableHint(be.left);
           whereIds.push({ tableHint, column: columnName, paramIndices: [pIdx] });
         }
       }
 
       // "id IN (?, ?)" pattern
-      if (node.type === "InListExpr" && Array.isArray(node.rhs)) {
-        const columnName = extractColumnName(node.lhs);
+      if (node.type === "InListExpr") {
+        const ie = node as InListExpr;
+        if (!ie.rhs) return;
+        const columnName = extractColumnName(ie.lhs);
         if (!columnName) return;
         const indices: number[] = [];
-        for (const item of node.rhs) {
+        for (const item of ie.rhs) {
           const paramOffset = extractParamOffset(item);
           if (paramOffset === -1) continue;
           const pIdx = paramIndexForOffset.get(paramOffset);
@@ -136,7 +171,7 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
           }
         }
         if (indices.length > 0) {
-          const tableHint = extractTableHint(node.lhs);
+          const tableHint = extractTableHint(ie.lhs);
           whereIds.push({ tableHint, column: columnName, paramIndices: indices });
         }
       }
@@ -146,20 +181,26 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
   return { queryType, tablesRead, tablesWritten, whereIds };
 }
 
-function extractColumnName(node: any): string | null {
+function extractColumnName(node: Expr | null): string | null {
   if (!node) return null;
-  if (node.type === "Id") return node.name;
-  if (node.type === "QualifiedExpr" && node.column) return node.column.text ?? node.column.name;
+  if (node.type === "Id") return (node as Id).name;
+  if (node.type === "QualifiedExpr") {
+    const qe = node as QualifiedExpr;
+    return getNameText(qe.column);
+  }
   return null;
 }
 
-function extractTableHint(node: any): string {
+function extractTableHint(node: Expr | null): string {
   if (!node) return "";
-  if (node.type === "QualifiedExpr" && node.table) return node.table.text ?? node.table.name ?? "";
+  if (node.type === "QualifiedExpr") {
+    const qe = node as QualifiedExpr;
+    return getNameText(qe.table);
+  }
   return "";
 }
 
-function extractParamOffset(node: any): number {
+function extractParamOffset(node: Expr | null): number {
   if (!node || node.type !== "VariableExpr") return -1;
-  return node.span?.offset ?? -1;
+  return (node as VariableExpr).span.offset;
 }
