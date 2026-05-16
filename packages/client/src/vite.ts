@@ -1,13 +1,19 @@
 import { spawn } from "node:child_process";
-import type { Plugin } from "vite";
+import type { Plugin, ViteDevServer } from "vite";
 
 export function edgepod(): Plugin {
   let edgepodProcess: ReturnType<typeof spawn> | null = null;
 
+  const cleanup = () => {
+    if (edgepodProcess) {
+      edgepodProcess.kill("SIGTERM");
+      edgepodProcess = null;
+    }
+  };
+
   return {
     name: "edgepod",
-    configureServer: () => {
-      // Start edgepod dev server — it runs migrations on startup itself
+    configureServer: (server: ViteDevServer) => {
       edgepodProcess = spawn("edgepod", ["dev"], { stdio: "inherit" });
 
       edgepodProcess.on("error", (err) => {
@@ -16,12 +22,7 @@ export function edgepod(): Plugin {
         );
       });
 
-      // Return cleanup function that Vite calls on server shutdown
-      return () => {
-        if (edgepodProcess) {
-          edgepodProcess.kill("SIGTERM");
-        }
-      };
+      server.httpServer?.on("close", cleanup);
     },
   };
 }
