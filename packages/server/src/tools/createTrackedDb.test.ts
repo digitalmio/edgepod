@@ -124,6 +124,7 @@ describe("createTrackedDb", () => {
       socket: {} as WebSocket,
       listeningToTables: new Set(),
     });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   function createProxy(cascadeGraph?: Map<string, Set<string>>) {
@@ -208,5 +209,14 @@ describe("createTrackedDb", () => {
 
     const existingMethod = (proxy as any).select;
     expect(typeof existingMethod).toBe("function");
+  });
+
+  it("logs warning when realDb.$client is missing", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    createProxy();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[EdgePod] Unable to wire SQL tracking: realDb.$client is missing or invalid.",
+    );
+    warnSpy.mockRestore();
   });
 });

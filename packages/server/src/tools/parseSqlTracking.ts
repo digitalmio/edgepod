@@ -1,5 +1,4 @@
 import {
-  type AstNode,
   type BinaryExpr,
   type DeleteStmt,
   type Expr,
@@ -134,49 +133,60 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
     paramIndexForOffset.set(ve.offset, i);
   });
 
-  // Collect WHERE conditions with param references
-  const visited = new Set<AstNode>();
+  // Collect WHERE expressions from all WHERE clauses in the AST
+  const whereExprs: Expr[] = [];
   traverse(root, {
-    enter(node, _parent) {
-      if (visited.has(node)) return;
-      visited.add(node);
-
-      // "id = ?" pattern
-      if (node.type === "BinaryExpr" && node.op === "Equals") {
-        const be = node as BinaryExpr;
-        const columnName = extractColumnName(be.left);
-        if (!columnName) return;
-        const paramOffset = extractParamOffset(be.right);
-        if (paramOffset === -1) return;
-        const pIdx = paramIndexForOffset.get(paramOffset);
-        if (pIdx !== undefined && pIdx < params.length) {
-          const tableHint = extractTableHint(be.left);
-          whereIds.push({ tableHint, column: columnName, paramIndices: [pIdx] });
-        }
+    enter(node) {
+      if ((node.type === "DeleteStmt" || node.type === "UpdateStmt") && node.whereClause) {
+        whereExprs.push(node.whereClause);
       }
-
-      // "id IN (?, ?)" pattern
-      if (node.type === "InListExpr") {
-        const ie = node as InListExpr;
-        if (!ie.rhs) return;
-        const columnName = extractColumnName(ie.lhs);
-        if (!columnName) return;
-        const indices: number[] = [];
-        for (const item of ie.rhs) {
-          const paramOffset = extractParamOffset(item);
-          if (paramOffset === -1) continue;
-          const pIdx = paramIndexForOffset.get(paramOffset);
-          if (pIdx !== undefined && pIdx < params.length) {
-            indices.push(pIdx);
-          }
-        }
-        if (indices.length > 0) {
-          const tableHint = extractTableHint(ie.lhs);
-          whereIds.push({ tableHint, column: columnName, paramIndices: indices });
-        }
+      if (node.type === "SelectFrom" && node.whereClause) {
+        whereExprs.push(node.whereClause);
       }
     },
   });
+
+  // Extract row IDs only from WHERE-clause expressions (not JOIN ON / HAVING)
+  for (const whereExpr of whereExprs) {
+    traverse(whereExpr, {
+      enter(node) {
+        // "id = ?" pattern
+        if (node.type === "BinaryExpr" && node.op === "Equals") {
+          const be = node as BinaryExpr;
+          const columnName = extractColumnName(be.left);
+          if (!columnName) return;
+          const paramOffset = extractParamOffset(be.right);
+          if (paramOffset === -1) return;
+          const pIdx = paramIndexForOffset.get(paramOffset);
+          if (pIdx !== undefined && pIdx < params.length) {
+            const tableHint = extractTableHint(be.left);
+            whereIds.push({ tableHint, column: columnName, paramIndices: [pIdx] });
+          }
+        }
+
+        // "id IN (?, ?)" pattern
+        if (node.type === "InListExpr") {
+          const ie = node as InListExpr;
+          if (!ie.rhs) return;
+          const columnName = extractColumnName(ie.lhs);
+          if (!columnName) return;
+          const indices: number[] = [];
+          for (const item of ie.rhs) {
+            const paramOffset = extractParamOffset(item);
+            if (paramOffset === -1) continue;
+            const pIdx = paramIndexForOffset.get(paramOffset);
+            if (pIdx !== undefined && pIdx < params.length) {
+              indices.push(pIdx);
+            }
+          }
+          if (indices.length > 0) {
+            const tableHint = extractTableHint(ie.lhs);
+            whereIds.push({ tableHint, column: columnName, paramIndices: indices });
+          }
+        }
+      },
+    });
+  }
 
   return { queryType, tablesRead, tablesWritten, whereIds };
 }

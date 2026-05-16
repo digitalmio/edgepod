@@ -62,7 +62,9 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
 ): unknown {
   // Wire in client-level SQL tracking if the db exposes its underlying storage
   const client = (realDb as unknown as Record<string, unknown>).$client;
-  if (client && typeof client === "object" && "sql" in client) {
+  if (!client || typeof client !== "object" || !("sql" in client)) {
+    console.warn("[EdgePod] Unable to wire SQL tracking: realDb.$client is missing or invalid.");
+  } else {
     const trackedClient = createTrackedClient(
       client as DurableObjectStorage,
       tablesRead,
@@ -70,7 +72,9 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
       cascadeGraph,
     );
     const session = (realDb as unknown as Record<string, unknown>).session;
-    if (session && typeof session === "object") {
+    if (!session || typeof session !== "object") {
+      console.warn("[EdgePod] Unable to wire SQL tracking: realDb.session is missing.");
+    } else {
       (session as Record<string, unknown>).client = trackedClient;
     }
   }

@@ -270,6 +270,38 @@ describe("parseSqlTracking — raw SQL (uppercase)", () => {
   });
 });
 
+describe("parseSqlTracking — WHERE scoping", () => {
+  it("extracts WHERE id = ?", () => {
+    const r = parseSqlTracking('select * from "users" where "users"."id" = ?', [42]);
+    expect(r.whereIds).toHaveLength(1);
+    expect(r.whereIds[0].column).toBe("id");
+    expect(r.whereIds[0].paramIndices).toEqual([0]);
+  });
+
+  it("ignores JOIN ON condition", () => {
+    const r = parseSqlTracking(
+      'select * from "users" left join "posts" on "posts"."user_id" = ?',
+      [1],
+    );
+    expect(r.tablesRead).toEqual(["users", "posts"]);
+    expect(r.whereIds).toEqual([]);
+  });
+
+  it("ignores HAVING condition", () => {
+    const r = parseSqlTracking(
+      'select user_id, count(*) from "orders" group by user_id having count(*) > ?',
+      [5],
+    );
+    expect(r.whereIds).toEqual([]);
+  });
+
+  it("ignores params in SET clause (not WHERE)", () => {
+    const r = parseSqlTracking('update "users" set "name" = ? where "users"."id" = ?', ["new", 1]);
+    expect(r.whereIds).toHaveLength(1);
+    expect(r.whereIds[0].column).toBe("id");
+  });
+});
+
 describe("parseSqlTracking — edge cases", () => {
   it("handles multiple AND conditions in WHERE", () => {
     const r = parseSqlTracking(
@@ -279,13 +311,6 @@ describe("parseSqlTracking — edge cases", () => {
     expect(r.whereIds).toHaveLength(2);
     expect(r.whereIds[0].column).toBe("id");
     expect(r.whereIds[1].column).toBe("name");
-  });
-
-  it("ignores params in SET clause (not WHERE)", () => {
-    const r = parseSqlTracking('update "users" set "name" = ? where "users"."id" = ?', ["new", 1]);
-    // Only the WHERE param should be extracted, not the SET param
-    expect(r.whereIds).toHaveLength(1);
-    expect(r.whereIds[0].column).toBe("id");
   });
 
   it("returns empty for parse errors", () => {
