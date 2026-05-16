@@ -29,8 +29,8 @@
     },
     "./vite": {
       "import": {
-        "types": "./dist/vite.d.mts",
-        "default": "./dist/vite.mjs"
+        "types": "./dist/vite.d.ts",
+        "default": "./dist/vite.js"
       },
       "require": {
         "types": "./dist/vite.d.cts",
