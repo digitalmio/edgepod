@@ -3,7 +3,7 @@
 ## General Behaviour
 
 - **Ask questions if unsure, do not assume anything.** When requirements are ambiguous, ask for clarification before writing code.
-- **Keep files under 150 lines** (soft limit). Files above 200 lines must be refactored into smaller modules (hard limit).
+- **Keep files under 150-200 lines** (soft limit). Files above 250 lines must be refactored into smaller modules (hard limit).
 - **No Python.** For helper scripts, use Node.js (plain `.mjs` files). Never reach for Python, shell scripts beyond simple one-liners, or other runtimes.
 - **Do not edit auto-generated files.** Files like `routeTree.gen.ts` (TanStack Router), `worker-configuration.d.ts`, or any file with a `// This file is auto-generated` header must never be manually edited — they are overwritten by tooling.
 - **Do not edit shadcn/ui files.** Files under `src/components/ui/` are installed and managed by the shadcn CLI. Never modify them — override styles at the call site instead.

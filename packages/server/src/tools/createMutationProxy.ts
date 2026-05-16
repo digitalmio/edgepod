@@ -1,13 +1,9 @@
-import { recordMutationWithCascades } from "./recordMutation";
 import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
 export function createMutationProxy(
   builder: Record<string, unknown>,
   warnings: string[],
   mutationType: "update" | "delete",
-  tableName?: string,
-  tablesWritten?: Set<string>,
-  cascadeGraph?: Map<string, Set<string>>,
   initialState = { whereSet: false, withoutWhereSet: false },
 ): unknown {
   const config: ProxyConfig = {
@@ -28,9 +24,6 @@ export function createMutationProxy(
         throw new Error(
           `[EdgePod] ${mutationType.toUpperCase()} without WHERE is blocked. If intentional, chain .withoutWhere().`,
         );
-      }
-      if (tableName && tableName !== "unknown" && tablesWritten) {
-        recordMutationWithCascades(tableName, tablesWritten, cascadeGraph ?? new Map());
       }
       return target[prop](...args);
     },

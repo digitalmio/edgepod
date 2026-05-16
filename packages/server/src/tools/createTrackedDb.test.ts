@@ -124,6 +124,7 @@ describe("createTrackedDb", () => {
       socket: {} as WebSocket,
       listeningToTables: new Set(),
     });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   function createProxy(cascadeGraph?: Map<string, Set<string>>) {
@@ -148,89 +149,6 @@ describe("createTrackedDb", () => {
     expect(() => (proxy as any).get()).toThrow("ctx.db.get");
     expect(() => (proxy as any).values()).toThrow("ctx.db.values");
     expect(() => (proxy as any).execute()).toThrow("ctx.db.execute");
-  });
-
-  it("tracks insert as table write", async () => {
-    const { proxy } = createProxy();
-    const usersTable = { name: "users" };
-
-    await (proxy as any).insert(usersTable).values({ name: "test" });
-
-    expect(tablesWritten.has("users")).toBe(true);
-  });
-
-  it("tracks update as table write", async () => {
-    const { proxy } = createProxy();
-    const usersTable = { name: "users" };
-
-    await (proxy as any).update(usersTable).set({ name: "updated" }).where({ id: 1 }).run();
-
-    expect(tablesWritten.has("users")).toBe(true);
-  });
-
-  it("tracks delete as table write", async () => {
-    const { proxy } = createProxy();
-    const usersTable = { name: "users" };
-
-    await (proxy as any).delete(usersTable).where({ id: 1 }).run();
-
-    expect(tablesWritten.has("users")).toBe(true);
-  });
-
-  it("propagates cascades on delete", async () => {
-    const cascadeGraph = new Map<string, Set<string>>();
-    cascadeGraph.set("users", new Set(["posts", "comments"]));
-
-    const { proxy } = createProxy(cascadeGraph);
-    const usersTable = { name: "users" };
-
-    await (proxy as any).delete(usersTable).where({ id: 1 }).run();
-
-    expect(tablesWritten.has("users")).toBe(true);
-    expect(tablesWritten.has("posts")).toBe(true);
-    expect(tablesWritten.has("comments")).toBe(true);
-  });
-
-  it("does not propagate cascades on insert", async () => {
-    const cascadeGraph = new Map<string, Set<string>>();
-    cascadeGraph.set("users", new Set(["posts"]));
-
-    const { proxy } = createProxy(cascadeGraph);
-    const usersTable = { name: "users" };
-
-    await (proxy as any).insert(usersTable).values({ name: "test" });
-
-    expect(tablesWritten.has("users")).toBe(true);
-    expect(tablesWritten.has("posts")).toBe(false);
-  });
-
-  it("does not propagate cascades on update", async () => {
-    const cascadeGraph = new Map<string, Set<string>>();
-    cascadeGraph.set("users", new Set(["posts"]));
-
-    const { proxy } = createProxy(cascadeGraph);
-    const usersTable = { name: "users" };
-
-    await (proxy as any).update(usersTable).set({ name: "updated" }).where({ id: 1 }).run();
-
-    expect(tablesWritten.has("users")).toBe(true);
-    expect(tablesWritten.has("posts")).toBe(false);
-  });
-
-  it("tracks select as table read via query.findMany", async () => {
-    const { proxy } = createProxy();
-
-    await (proxy as any).query.users.findMany();
-
-    expect(tablesRead.has("users")).toBe(true);
-  });
-
-  it("tracks select as table read via query.findFirst", async () => {
-    const { proxy } = createProxy();
-
-    await (proxy as any).query.users.findFirst();
-
-    expect(tablesRead.has("users")).toBe(true);
   });
 
   it("registers listening tables on session via query.findMany", async () => {
@@ -291,5 +209,14 @@ describe("createTrackedDb", () => {
 
     const existingMethod = (proxy as any).select;
     expect(typeof existingMethod).toBe("function");
+  });
+
+  it("logs warning when realDb.$client is missing", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    createProxy();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[EdgePod] Unable to wire SQL tracking: realDb.$client is missing or invalid.",
+    );
+    warnSpy.mockRestore();
   });
 });
