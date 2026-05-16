@@ -217,6 +217,18 @@ EdgePod helps you stay within Durable Object limits with lightweight, always-on 
 
 These are not configuration options — they are designed to catch accidental misuse early, while giving you explicit escape hatches when you need them.
 
+### Schema Migrations
+
+EdgePod uses SQLite under the hood (via Cloudflare Durable Objects). SQLite does **not** support changing a column's type directly — altering a column type requires dropping and recreating the column, which destroys existing data.
+
+If you try to change a column type in your schema, `edgepod dev` will stop and print an error telling you exactly which column is affected. To proceed:
+
+1. Revert the type change in your schema.
+2. Use a **new column name** if you need a different type.
+3. Or explicitly drop the old column and create a new one in a manual migration.
+
+This is an SQLite limitation, not an EdgePod restriction.
+
 ---
 
 ## License

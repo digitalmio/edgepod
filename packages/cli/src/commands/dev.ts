@@ -29,7 +29,9 @@ export const devCommand = async () => {
   try {
     await generateMigrationFiles(rootPath);
   } catch (e) {
-    consola.warn(`Initial migrations failed: ${e instanceof Error ? e.message : e}`);
+    consola.error(`Migration failed: ${e instanceof Error ? e.message : e}`);
+    consola.error("Fix the issue and restart with `edgepod dev`.");
+    process.exit(1);
   }
 
   // Spawn wrangler dev
@@ -59,7 +61,11 @@ export const devCommand = async () => {
           await generateMigrationFiles(rootPath);
           consola.success("Migrations updated. Wrangler will restart the worker.");
         } catch (e) {
-          consola.error(`Migrations failed: ${e instanceof Error ? e.message : e}`);
+          consola.error(`Migration failed: ${e instanceof Error ? e.message : e}`);
+          consola.error(
+            "Revert your schema change, fix the issue, and restart with `edgepod dev`.",
+          );
+          process.exit(1);
         }
       }, 100);
     });

@@ -97,21 +97,14 @@ async function warnColumnTypeChanges(
 
   if (changes.length === 0) return;
 
-  consola.warn("SQLite does not support changing column types directly.");
-  consola.warn("The following columns will be dropped and recreated — existing data will be lost:");
-  for (const c of changes) {
-    consola.log(`  ${c.table}.${c.column}: ${c.from} → ${c.to}`);
-  }
+  const lines = changes.map((c) => `  ${c.table}.${c.column}: ${c.from} → ${c.to}`).join("\n");
 
-  const confirmed = await consola.prompt("Proceed and generate the migration anyway?", {
-    type: "confirm",
-    initial: false,
-  });
-
-  if (!confirmed) {
-    consola.info("Migration aborted.");
-    process.exit(0);
-  }
+  throw new Error(
+    `EdgePod is built on top of Durable Objects with an embedded SQLite database. ` +
+      `SQLite does not support changing column types directly. ` +
+      `Please revert your schema change and use a different column name, or drop and recreate the column.\n\n` +
+      `Affected columns:\n${lines}`,
+  );
 }
 
 export async function generateMigrationFiles(
