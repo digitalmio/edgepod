@@ -10,6 +10,12 @@ export function edgepod(): Plugin {
       // Start edgepod dev server — it runs migrations on startup itself
       edgepodProcess = spawn("edgepod", ["dev"], { stdio: "inherit" });
 
+      edgepodProcess.on("error", (err) => {
+        console.error(
+          `Failed to start edgepod dev: ${err.message}. Make sure @edgepod/cli is installed.`,
+        );
+      });
+
       // Return cleanup function that Vite calls on server shutdown
       return () => {
         if (edgepodProcess) {

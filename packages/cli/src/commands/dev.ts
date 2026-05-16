@@ -45,6 +45,7 @@ export const devCommand = async () => {
   // Use dynamic import for chokidar so it doesn't fail if not installed
   let watcher: { close: () => Promise<void> } | null = null;
   let debounceTimer: NodeJS.Timeout | null = null;
+  let isMigrating = false;
 
   try {
     const { watch } = await import("chokidar");
@@ -57,6 +58,8 @@ export const devCommand = async () => {
 
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
+        if (isMigrating) return;
+        isMigrating = true;
         try {
           await generateMigrationFiles(rootPath);
           consola.success("Migrations updated. Wrangler will restart the worker.");
@@ -67,6 +70,8 @@ export const devCommand = async () => {
           );
           await cleanup();
           process.exit(1);
+        } finally {
+          isMigrating = false;
         }
       }, 100);
     });
