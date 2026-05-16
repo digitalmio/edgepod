@@ -22,7 +22,11 @@ export function edgepod(): Plugin {
         );
       });
 
-      server.httpServer?.on("close", cleanup);
+      if (server.httpServer) {
+        server.httpServer.on("close", cleanup);
+      } else {
+        server.watcher.on("close", cleanup);
+      }
     },
   };
 }

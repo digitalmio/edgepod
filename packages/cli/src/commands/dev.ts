@@ -84,7 +84,10 @@ export const devCommand = async () => {
   const cleanup = async () => {
     consola.info("Shutting down EdgePod dev server...");
     if (debounceTimer) clearTimeout(debounceTimer);
-    if (watcher) await watcher.close();
+    if (watcher) {
+      await watcher.close();
+      watcher = null;
+    }
     wrangler.kill("SIGTERM", { forceKillAfterTimeout: 5000 });
   };
 
