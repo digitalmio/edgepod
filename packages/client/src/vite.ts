@@ -10,7 +10,7 @@ export function edgepod(): Plugin {
       // Run migrations once before starting the server
       try {
         await new Promise<void>((resolve, reject) => {
-          const proc = spawn("edgepod", ["migrations"], { stdio: "inherit", shell: true });
+          const proc = spawn("edgepod migrations", { stdio: "inherit", shell: true });
           proc.on("close", (code) => {
             if (code === 0) resolve();
             else reject(new Error(`edgepod migrations exited with code ${code}`));
@@ -22,7 +22,7 @@ export function edgepod(): Plugin {
       }
 
       // Start edgepod dev server
-      edgepodProcess = spawn("edgepod", ["dev"], { stdio: "inherit", shell: true });
+      edgepodProcess = spawn("edgepod dev", { stdio: "inherit", shell: true });
     },
     closeBundle: async () => {
       if (edgepodProcess) {
