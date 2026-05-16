@@ -4,7 +4,7 @@ import { checkResultWarnings } from "./checkResultWarnings";
 import { createSelectProxy } from "./createSelectProxy";
 import { createMutationProxy } from "./createMutationProxy";
 import { hashTableName } from "./hashTableName";
-import { recordMutationWithCascades } from "./recordMutation";
+import { recordCascades } from "./createTrackedClient";
 import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
 const FORBIDDEN_RAW_METHODS = ["run", "all", "get", "values", "execute"];
@@ -33,7 +33,7 @@ function createInsertProxy(
         throw new Error("[EdgePod] .prepare() is not supported for inserts.");
       }
       if (tableName !== "unknown") {
-        recordMutationWithCascades(tableName, tablesWritten, new Map());
+        recordCascades(tableName, tablesWritten, new Map());
       }
       return target[prop](...args);
     },

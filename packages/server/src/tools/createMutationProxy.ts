@@ -1,4 +1,4 @@
-import { recordMutationWithCascades } from "./recordMutation";
+import { recordCascades } from "./createTrackedClient";
 import { createQueryProxy, type ProxyConfig } from "./createQueryProxy";
 
 export function createMutationProxy(
@@ -30,7 +30,7 @@ export function createMutationProxy(
         );
       }
       if (tableName && tableName !== "unknown" && tablesWritten) {
-        recordMutationWithCascades(tableName, tablesWritten, cascadeGraph ?? new Map());
+        recordCascades(tableName, tablesWritten, cascadeGraph ?? new Map());
       }
       return target[prop](...args);
     },

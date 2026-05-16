@@ -40,9 +40,9 @@ function makeCursor<T>(
   const stmt = sqlite.prepare(sql);
   if (raw) stmt.raw(true);
 
-  let iter: IterableIterator<T>;
+  let rows: T[];
   try {
-    iter = params.length > 0 ? stmt.iterate(...params) : stmt.iterate();
+    rows = params.length > 0 ? stmt.all(...params) : stmt.all();
   } catch {
     // Non-SELECT statement (INSERT, UPDATE, DELETE, CREATE, etc.)
     if (params.length > 0) {
@@ -53,9 +53,22 @@ function makeCursor<T>(
     return makeEmptyCursor<T>();
   }
 
+  let index = 0;
+  const iter: IterableIterator<T> = {
+    next() {
+      if (index < rows.length) {
+        return { done: false, value: rows[index++] };
+      }
+      return { done: true, value: undefined };
+    },
+    [Symbol.iterator]() {
+      return iter;
+    },
+  };
+
   return {
     toArray() {
-      return Array.from(iter);
+      return rows;
     },
     next() {
       return iter.next();
