@@ -13,13 +13,23 @@
     "dist"
   ],
   "type": "module",
-  "main": "./dist/vite.cjs",
-  "module": "./dist/vite.mjs",
-  "types": "./dist/vite.d.cts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/vite.mjs",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./vite": {
+      "import": {
+        "types": "./dist/vite.d.mts",
         "default": "./dist/vite.mjs"
       },
       "require": {
