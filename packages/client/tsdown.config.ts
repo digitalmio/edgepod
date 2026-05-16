@@ -2,7 +2,10 @@ import { defineConfig } from "tsdown";
 import { addNestedTypes } from "../../scripts/tsdown-config.mjs";
 
 export default defineConfig({
-  entry: "src/index.ts",
+  entry: {
+    index: "src/index.ts",
+    vite: "src/vite.ts",
+  },
   format: ["esm", "cjs"],
   platform: "browser",
   dts: true,
@@ -11,6 +14,6 @@ export default defineConfig({
   },
   outDir: "dist",
   deps: {
-    neverBundle: ["react", "@types/react", "nanostores", "partysocket", "swr"],
+    neverBundle: ["react", "@types/react", "nanostores", "partysocket", "swr", "vite"],
   },
 });

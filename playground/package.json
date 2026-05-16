@@ -8,11 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preedgepod:dev": "edgepod migrations && wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts",
-    "edgepod:dev": "wrangler dev -c edgepod/wrangler.json",
-    "edgepod:migrations": "edgepod migrations",
-    "preedgepod:deploy": "edgepod migrations && wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts",
-    "edgepod:deploy": "wrangler deploy -c edgepod/wrangler.json --secrets-file edgepod/.env"
+    "edgepod:dev": "edgepod dev",
+    "edgepod:migrate": "edgepod migrations",
+    "edgepod:types": "wrangler types -c edgepod/wrangler.json edgepod/.generated/cloudflare-env.d.ts",
+    "edgepod:deploy": "edgepod migrations && wrangler deploy -c edgepod/wrangler.json --secrets-file edgepod/.env"
   },
   "dependencies": {
     "react": "^19.2.6",

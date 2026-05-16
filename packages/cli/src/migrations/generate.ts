@@ -127,7 +127,7 @@ export async function generateMigrationFiles(
     loadJson<Journal>(path.join(absOutputDir, JOURNAL_FILE), () => ({ entries: [] })),
   ]);
 
-  const userSchema = await import(absSchemaPath);
+  const userSchema = await import(`${absSchemaPath}?t=${Date.now()}`);
   const curSnapshot = await generateSQLiteDrizzleJson(userSchema, prevSnapshot.id);
 
   await warnColumnTypeChanges(prevSnapshot, curSnapshot);
