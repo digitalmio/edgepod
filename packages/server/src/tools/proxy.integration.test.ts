@@ -41,7 +41,7 @@ function setup() {
     warnings,
   );
 
-  return { db: trackedDb as any, tablesRead, tablesWritten, warnings };
+  return { db: trackedDb as any, rawDb: db, tablesRead, tablesWritten, warnings };
 }
 
 describe("proxy integration — limit enforcement", () => {
@@ -193,5 +193,42 @@ describe("proxy integration — prepare", () => {
     expect(typeof prepared.all).toBe("function");
     const result = await prepared.execute();
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe("proxy integration — unsafeRawDb tracking", () => {
+  it("tracks raw SELECT on unsafeRawDb", () => {
+    const { rawDb, tablesRead } = setup();
+    rawDb.select().from(users).all();
+    expect(tablesRead.has("users")).toBe(true);
+  });
+
+  it("tracks raw INSERT on unsafeRawDb", () => {
+    const { rawDb, tablesWritten } = setup();
+    rawDb.insert(users).values({ name: "test" }).run();
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks raw UPDATE on unsafeRawDb", () => {
+    const { rawDb, tablesWritten } = setup();
+    rawDb.update(users).set({ name: "changed" }).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("tracks raw DELETE on unsafeRawDb", () => {
+    const { rawDb, tablesWritten } = setup();
+    rawDb.delete(users).where(eq(users.id, 1)).run();
+    expect(tablesWritten.has("users")).toBe(true);
+  });
+
+  it("unsafeRawDb bypasses safety enforcement (no WHERE block)", () => {
+    const { rawDb } = setup();
+    expect(() => rawDb.delete(users).run()).not.toThrow();
+  });
+
+  it("unsafeRawDb bypasses safety enforcement (no limit clamp)", () => {
+    const { rawDb, warnings } = setup();
+    rawDb.select().from(users).limit(5000).all();
+    expect(warnings).toHaveLength(0);
   });
 });
