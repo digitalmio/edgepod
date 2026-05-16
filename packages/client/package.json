@@ -27,11 +27,21 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./vite": {
+      "import": {
+        "types": "./dist/vite.d.ts",
+        "default": "./dist/vite.js"
+      },
+      "require": {
+        "types": "./dist/vite.d.cts",
+        "default": "./dist/vite.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
     "test": "vitest run",
-    "build": "tsdown"
+    "build": "tsdown -c tsdown.config.ts && tsdown -c tsdown.config.vite.ts"
   },
   "dependencies": {
     "nanostores": "^1.3.0",
@@ -42,14 +52,19 @@
     "@testing-library/react": "^16.3.0",
     "@types/react": "^18.0.0 || ^19.0.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "vite": "^8.0.12"
   },
   "peerDependencies": {
     "@types/react": "^18.0.0 || ^19.0.0",
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   },

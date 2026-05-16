@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "cac": "^7.0.0",
+    "chokidar": "^4.0.3",
     "consola": "^3.4.2",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import type { DrizzleSQLiteSnapshotJSON } from "drizzle-kit/api";
 import { consola } from "consola";
@@ -97,21 +98,14 @@ async function warnColumnTypeChanges(
 
   if (changes.length === 0) return;
 
-  consola.warn("SQLite does not support changing column types directly.");
-  consola.warn("The following columns will be dropped and recreated — existing data will be lost:");
-  for (const c of changes) {
-    consola.log(`  ${c.table}.${c.column}: ${c.from} → ${c.to}`);
-  }
+  const lines = changes.map((c) => `  ${c.table}.${c.column}: ${c.from} → ${c.to}`).join("\n");
 
-  const confirmed = await consola.prompt("Proceed and generate the migration anyway?", {
-    type: "confirm",
-    initial: false,
-  });
-
-  if (!confirmed) {
-    consola.info("Migration aborted.");
-    process.exit(0);
-  }
+  throw new Error(
+    `EdgePod is built on top of Durable Objects with an embedded SQLite database. ` +
+      `SQLite does not support changing column types directly. ` +
+      `Please revert your schema change and use a different column name, or drop and recreate the column.\n\n` +
+      `Affected columns:\n${lines}`,
+  );
 }
 
 export async function generateMigrationFiles(
@@ -127,7 +121,10 @@ export async function generateMigrationFiles(
     loadJson<Journal>(path.join(absOutputDir, JOURNAL_FILE), () => ({ entries: [] })),
   ]);
 
-  const userSchema = await import(absSchemaPath);
+  // Cache-bust the ESM import so schema changes are picked up on re-import.
+  // Note: Node.js ESM cache is append-only; each unique ?t= creates a permanent entry.
+  // This is acceptable for a dev tool, but may leak memory in very long sessions.
+  const userSchema = await import(`${pathToFileURL(absSchemaPath).href}?t=${Date.now()}`);
   const curSnapshot = await generateSQLiteDrizzleJson(userSchema, prevSnapshot.id);
 
   await warnColumnTypeChanges(prevSnapshot, curSnapshot);

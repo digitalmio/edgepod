@@ -1,13 +1,14 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: "src/index.ts",
+  entry: "src/vite.ts",
   format: ["esm", "cjs"],
-  platform: "browser",
+  platform: "neutral",
   dts: true,
   exports: false,
   outDir: "dist",
+  clean: false,
   deps: {
-    neverBundle: ["react", "@types/react", "nanostores", "partysocket", "swr"],
+    neverBundle: ["vite", "node:child_process"],
   },
 });
