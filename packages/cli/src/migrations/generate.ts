@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import type { DrizzleSQLiteSnapshotJSON } from "drizzle-kit/api";
 import { consola } from "consola";
@@ -120,7 +121,10 @@ export async function generateMigrationFiles(
     loadJson<Journal>(path.join(absOutputDir, JOURNAL_FILE), () => ({ entries: [] })),
   ]);
 
-  const userSchema = await import(`${absSchemaPath}?t=${Date.now()}`);
+  // Cache-bust the ESM import so schema changes are picked up on re-import.
+  // Note: Node.js ESM cache is append-only; each unique ?t= creates a permanent entry.
+  // This is acceptable for a dev tool, but may leak memory in very long sessions.
+  const userSchema = await import(`${pathToFileURL(absSchemaPath).href}?t=${Date.now()}`);
   const curSnapshot = await generateSQLiteDrizzleJson(userSchema, prevSnapshot.id);
 
   await warnColumnTypeChanges(prevSnapshot, curSnapshot);

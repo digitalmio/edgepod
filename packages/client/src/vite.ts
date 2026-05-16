@@ -8,7 +8,7 @@ export function edgepod(): Plugin {
     name: "edgepod",
     configureServer: () => {
       // Start edgepod dev server — it runs migrations on startup itself
-      edgepodProcess = spawn("edgepod dev", { stdio: "inherit", shell: true });
+      edgepodProcess = spawn("edgepod", ["dev"], { stdio: "inherit" });
 
       // Return cleanup function that Vite calls on server shutdown
       return () => {

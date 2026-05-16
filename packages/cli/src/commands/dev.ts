@@ -65,6 +65,7 @@ export const devCommand = async () => {
           consola.error(
             "Revert your schema change, fix the issue, and restart with `edgepod dev`.",
           );
+          await cleanup();
           process.exit(1);
         }
       }, 100);
@@ -86,4 +87,8 @@ export const devCommand = async () => {
   process.on("SIGTERM", cleanup);
 
   await wrangler;
+
+  // Close watcher after wrangler exits so the process can terminate
+  if (watcher) await watcher.close();
+  if (debounceTimer) clearTimeout(debounceTimer);
 };
