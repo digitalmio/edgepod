@@ -68,7 +68,7 @@ export const devCommand = async () => {
           consola.error(
             "Revert your schema change, fix the issue, and restart with `edgepod dev`.",
           );
-          await cleanup();
+          cleanup();
           process.exit(1);
         } finally {
           isMigrating = false;
@@ -81,11 +81,11 @@ export const devCommand = async () => {
     );
   }
 
-  const cleanup = async () => {
+  const cleanup = () => {
     consola.info("Shutting down EdgePod dev server...");
     if (debounceTimer) clearTimeout(debounceTimer);
     if (watcher) {
-      await watcher.close();
+      watcher.close().catch(() => {});
       watcher = null;
     }
     wrangler.kill("SIGTERM", { forceKillAfterTimeout: 5000 });

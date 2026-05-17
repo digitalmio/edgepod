@@ -13,8 +13,14 @@ export function edgepod(): Plugin {
 
   return {
     name: "edgepod",
+    apply: "serve",
     configureServer: (server: ViteDevServer) => {
-      edgepodProcess = spawn("edgepod", ["dev"], { stdio: "inherit" });
+      edgepodProcess = spawn("edgepod", ["dev"], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      edgepodProcess.stdout?.pipe(process.stdout);
+      edgepodProcess.stderr?.pipe(process.stderr);
 
       edgepodProcess.on("error", (err) => {
         console.error(
