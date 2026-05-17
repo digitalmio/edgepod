@@ -2,16 +2,17 @@
 
 export default {
   journal: {
-  "entries": [
-    {
-      "idx": 0,
-      "tag": "0000_migration",
-      "when": 1778523638396,
-      "breakpoints": true
-    }
-  ]
-},
+    entries: [
+      {
+        idx: 0,
+        tag: "0000_migration",
+        when: 1778523638396,
+        breakpoints: true,
+      },
+    ],
+  },
   migrations: {
-  "m0000": "CREATE TABLE `posts` (\n\t`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,\n\t`title` text NOT NULL,\n\t`content` text,\n\t`author_id` integer NOT NULL,\n\tFOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade\n);\n\n--> statement-breakpoint\nCREATE TABLE `users` (\n\t`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,\n\t`email` text NOT NULL,\n\t`name` text,\n\t`created_at` text\n);\n\n--> statement-breakpoint\nCREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);",
+    m0000:
+      "CREATE TABLE `posts` (\n\t`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,\n\t`title` text NOT NULL,\n\t`content` text,\n\t`author_id` integer NOT NULL,\n\tFOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade\n);\n\n--> statement-breakpoint\nCREATE TABLE `users` (\n\t`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,\n\t`email` text NOT NULL,\n\t`name` text,\n\t`created_at` text\n);\n\n--> statement-breakpoint\nCREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);",
   },
 };
