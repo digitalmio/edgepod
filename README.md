@@ -1,8 +1,8 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/files/logo/edgepod_logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="/files/logo/edgepod_logo-light.svg">
-    <img alt="EdgePod Logo" src="/files/logo/edgepod_logo-light.svg" width="450">
+    <source media="(prefers-color-scheme: dark)" srcset="files/logo/edgepod_logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="files/logo/edgepod_logo-light.svg">
+    <img alt="EdgePod Logo" src="files/logo/edgepod_logo-light.svg" width="450">
   </picture>
   <br/>
   <p><b>The Edge-Native, Reactive Database & RPC Framework</b></p>
