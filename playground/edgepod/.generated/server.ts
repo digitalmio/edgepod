@@ -1,11 +1,13 @@
 import { edgePodFetch, BaseEdgePodEngine } from "@edgepod/server";
 import * as schema from "../schema";
 import * as functions from "../functions";
+import * as cron from "../cron";
 import migrations from "./migrations/index";
 
 export class EdgePodEngine extends BaseEdgePodEngine {
   protected override schema = schema;
   protected override userFunctions = functions;
+  protected override cronFunctions = cron;
   protected override migrations = migrations;
 }
 

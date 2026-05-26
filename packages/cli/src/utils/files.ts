@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { webcrypto } from "node:crypto";
 import { consola } from "consola";
 import { functionsIndexTemplate } from "../templates/functions";
+import { cronIndexTemplate } from "../templates/cron";
 import { middlewaresTemplate } from "../templates/middlewares";
 import { schemaTemplate } from "../templates/schema";
 import { wranglerJsonTemplate } from "../templates/wrangler";
@@ -23,6 +24,7 @@ export default null;
     ["edgepod/types.ts", genTypesTemplate()],
     ["edgepod/schema.ts", schemaTemplate()],
     ["edgepod/middlewares.ts", middlewaresTemplate()],
+    ["edgepod/cron/index.ts", cronIndexTemplate()],
     ["edgepod/functions/index.ts", functionsIndexTemplate()],
     ["edgepod/.generated/server.ts", serverTemplate(opts)],
     ["edgepod/.generated/migrations/index.ts", emptyMigrationsIndex],

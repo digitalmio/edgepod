@@ -1,6 +1,6 @@
 export const genTypesTemplate = () => `/// <reference types="./.generated/cloudflare-env" />
 import * as schema from "./schema";
-import type { EdgePodContext } from "@edgepod/server";
+import type { EdgePodContext, CronContext } from "@edgepod/server";
 
 // Any env vars added to .env will be automatically deployed via Wrangler
 // Please add any custom env vars you need to the CustomEnv type below for type safety in your functions
@@ -28,4 +28,6 @@ export type Ctx<TVariables extends Record<string, unknown> = Variables> = EdgePo
   TVariables,
   User
 >;
+
+export type CronCtx = CronContext<typeof schema, Env & CustomEnv>;
 `;
