@@ -95,5 +95,5 @@ export type CronDefinition<
   TVariables extends Record<string, unknown> = Record<string, unknown>,
 > = {
   schedule: string;
-  handler: (ctx: CronContext<TSchema, TEnv, TVariables>) => Promise<JsonValue>;
+  handler: (ctx: CronContext<TSchema, TEnv, TVariables>) => Promise<void>;
 };

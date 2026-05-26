@@ -6,7 +6,7 @@ export function createSchedule<
   TVariables extends Record<string, unknown> = Record<string, unknown>,
 >(
   schedule: string,
-  handler: (ctx: CronContext<TSchema, TEnv, TVariables>) => Promise<unknown>,
+  handler: (ctx: CronContext<TSchema, TEnv, TVariables>) => Promise<void>,
 ): CronDefinition<TSchema, TEnv, TVariables> {
-  return { schedule, handler } as CronDefinition<TSchema, TEnv, TVariables>;
+  return { schedule, handler };
 }

@@ -38,14 +38,14 @@ export async function scheduleNextAlarm(
 export async function executeCron(
   name: string,
   def: CronDefinition<any, any, any>,
+  scheduledTime: Date,
   rawDb: any,
   env: any,
   activeSessions: EdgePodSessionMap,
   cascadeGraph: Map<string, Set<string>>,
   broadcastInvalidations: (tables: string[]) => void,
 ) {
-  const now = new Date();
-  const traceId = `cron:${name}:${now.getTime()}`;
+  const traceId = `cron:${name}:${scheduledTime.getTime()}`;
 
   const tablesRead = new Set<string>();
   const tablesWritten = new Set<string>();
@@ -72,7 +72,7 @@ export async function executeCron(
     set: (key: string, value: any) => variableStore.set(key, value),
     get: (key: string) => variableStore.get(key) as any,
     cron: def.schedule,
-    scheduledTime: now.toISOString(),
+    scheduledTime: scheduledTime.toISOString(),
   };
 
   await def.handler(ctx);
@@ -104,6 +104,7 @@ export async function handleCronAlarm(
         await executeCron(
           name,
           entry,
+          nextRun,
           rawDb,
           env,
           activeSessions,
