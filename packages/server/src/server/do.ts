@@ -63,6 +63,11 @@ export class BaseEdgePodEngine extends DurableObject {
         await migrate(this.rawDb, this.migrations as any);
       }
 
+      // Schedule the first alarm on cold start. This replaces any existing alarm,
+      // which is safe — when the DO wakes from hibernation for an RPC request (not
+      // alarm), the recomputed soonest-next-fire will be ≤ the previously pending
+      // alarm time, so no cron run is lost. When the DO wakes because an alarm fired,
+      // the alarm has already been consumed and alarm() will fire regardless.
       if (Object.keys(this.cronFunctions).length > 0) {
         await scheduleNextAlarm(this.cronFunctions, (ms) => this.ctx.storage.setAlarm(ms));
       }
