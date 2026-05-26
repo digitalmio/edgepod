@@ -99,7 +99,8 @@ export async function handleCronAlarm(
     try {
       const cron = new Cron(entry.schedule, { timezone: "UTC" });
       const nextRuns = cron.nextRuns(1, checkFrom);
-      if (nextRuns.length > 0 && nextRuns[0].getTime() <= now.getTime()) {
+      const nextRun = nextRuns[0];
+      if (nextRun && nextRun.getTime() <= now.getTime()) {
         await executeCron(
           name,
           entry,
