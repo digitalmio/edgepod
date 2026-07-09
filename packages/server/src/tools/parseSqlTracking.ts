@@ -54,9 +54,17 @@ function getTableNameFromJoined(j: JoinedSelectTable): string | null {
 }
 
 export function parseSqlTracking(sql: string): ParsedQuery {
+  const cached = parseCache.get(sql);
+  if (cached) return cached;
+
   const result = parseStmt(sql);
   if (result.status === "error") {
-    return { queryType: "unknown", tablesRead: [], tablesWritten: [] };
+    const parsed: ParsedQuery = { queryType: "unknown", tablesRead: [], tablesWritten: [] };
+    Object.freeze(parsed.tablesRead);
+    Object.freeze(parsed.tablesWritten);
+    Object.freeze(parsed);
+    parseCache.set(sql, parsed);
+    return parsed;
   }
 
   const root = result.root;
@@ -116,5 +124,10 @@ export function parseSqlTracking(sql: string): ParsedQuery {
     }
   }
 
-  return { queryType, tablesRead, tablesWritten };
+  const parsed: ParsedQuery = { queryType, tablesRead, tablesWritten };
+  Object.freeze(parsed.tablesRead);
+  Object.freeze(parsed.tablesWritten);
+  Object.freeze(parsed);
+  parseCache.set(sql, parsed);
+  return parsed;
 }

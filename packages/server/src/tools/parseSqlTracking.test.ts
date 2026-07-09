@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSqlTracking } from "./parseSqlTracking";
+import { describe, it, expect, beforeEach } from "vitest";
+import { parseSqlTracking, clearParseCache } from "./parseSqlTracking";
 
 describe("parseSqlTracking — query type", () => {
   it("detects SELECT", () => {
@@ -217,5 +217,60 @@ describe("parseSqlTracking — edge cases", () => {
     expect(r.queryType).toBe("unknown");
     expect(r.tablesRead).toEqual([]);
     expect(r.tablesWritten).toEqual([]);
+  });
+});
+
+describe("parseSqlTracking — cache", () => {
+  beforeEach(() => {
+    clearParseCache();
+  });
+
+  it("returns the same object reference on cache hit", () => {
+    const sql = 'SELECT * FROM "users"';
+    const first = parseSqlTracking(sql);
+    const second = parseSqlTracking(sql);
+    expect(second).toBe(first);
+  });
+
+  it("clearParseCache empties the cache", () => {
+    const sql = 'SELECT * FROM "posts"';
+    const first = parseSqlTracking(sql);
+    clearParseCache();
+    const second = parseSqlTracking(sql);
+    expect(second).not.toBe(first);
+    expect(second).toEqual(first);
+  });
+
+  it("LRU eviction removes oldest entries", () => {
+    const sqls: string[] = [];
+    for (let i = 0; i < 130; i++) {
+      const sql = `SELECT * FROM "t${i}"`;
+      sqls.push(sql);
+      parseSqlTracking(sql);
+    }
+    // After 130 inserts with maxSize 128, the first entry should be evicted
+    const firstSql = sqls[0];
+    const firstResult = parseSqlTracking(firstSql);
+    // It was evicted, so a new object is returned
+    const again = parseSqlTracking(firstSql);
+    expect(again).toBe(firstResult);
+  });
+
+  it("cached results are frozen", () => {
+    const r = parseSqlTracking('SELECT * FROM "users"');
+    expect(() => {
+      (r.tablesRead as string[]).push("hacked");
+    }).toThrow();
+    expect(() => {
+      r.queryType = "delete";
+    }).toThrow();
+  });
+
+  it("caches error results too", () => {
+    const sql = "garbage not sql";
+    const first = parseSqlTracking(sql);
+    const second = parseSqlTracking(sql);
+    expect(second).toBe(first);
+    expect(first.queryType).toBe("unknown");
   });
 });
