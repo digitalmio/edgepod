@@ -15,7 +15,7 @@ export const findPackageManager = async (): Promise<"npm" | "yarn" | "pnpm" | "b
     "package-lock.json",
   ]);
 
-  switch (lockPath?.split("/").pop()) {
+  switch (lockPath ? path.basename(lockPath) : undefined) {
     case "pnpm-lock.yaml":
       return "pnpm";
     case "yarn.lock":

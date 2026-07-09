@@ -1,28 +1,28 @@
 import {
-  type BinaryExpr,
   type DeleteStmt,
-  type Expr,
   type FromClause,
-  type Id,
-  type InListExpr,
   type InsertStmt,
   type JoinedSelectTable,
   type Name,
-  type QualifiedExpr,
   type QualifiedName,
   type SelectTable,
   type UpdateStmt,
-  type VariableExpr,
   parseStmt,
   traverse,
 } from "sqlite3-parser";
+import QuickLRU from "quick-lru";
 
 export type ParsedQuery = {
   queryType: "select" | "insert" | "update" | "delete" | "unknown";
   tablesRead: string[];
   tablesWritten: string[];
-  whereIds: Array<{ tableHint: string; column: string; paramIndices: number[] }>;
 };
+
+const parseCache = new QuickLRU<string, ParsedQuery>({ maxSize: 128 });
+
+export function clearParseCache(): void {
+  parseCache.clear();
+}
 
 function getNameText(n: Name): string {
   return n.text;
@@ -53,10 +53,10 @@ function getTableNameFromJoined(j: JoinedSelectTable): string | null {
   return getTableNameFromSelectTable(j.table);
 }
 
-export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
+export function parseSqlTracking(sql: string): ParsedQuery {
   const result = parseStmt(sql);
   if (result.status === "error") {
-    return { queryType: "unknown", tablesRead: [], tablesWritten: [], whereIds: [] };
+    return { queryType: "unknown", tablesRead: [], tablesWritten: [] };
   }
 
   const root = result.root;
@@ -106,7 +106,6 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
 
   const tablesRead: string[] = [];
   const tablesWritten: string[] = [];
-  const whereIds: Array<{ tableHint: string; column: string; paramIndices: number[] }> = [];
 
   if (queryType === "select") {
     tablesRead.push(...allTables);
@@ -117,100 +116,5 @@ export function parseSqlTracking(sql: string, params: unknown[]): ParsedQuery {
     }
   }
 
-  // Map ? positions to param indices by collecting all VariableExpr order
-  const varExprs: Array<{ offset: number; node: VariableExpr }> = [];
-  traverse(root, {
-    enter(node) {
-      if (node.type === "VariableExpr" && node.name === "?") {
-        varExprs.push({ offset: node.span.offset, node });
-      }
-    },
-  });
-  varExprs.sort((a, b) => a.offset - b.offset);
-
-  const paramIndexForOffset = new Map<number, number>();
-  varExprs.forEach((ve, i) => {
-    paramIndexForOffset.set(ve.offset, i);
-  });
-
-  // Collect WHERE expressions from all WHERE clauses in the AST
-  const whereExprs: Expr[] = [];
-  traverse(root, {
-    enter(node) {
-      if ((node.type === "DeleteStmt" || node.type === "UpdateStmt") && node.whereClause) {
-        whereExprs.push(node.whereClause);
-      }
-      if (node.type === "SelectFrom" && node.whereClause) {
-        whereExprs.push(node.whereClause);
-      }
-    },
-  });
-
-  // Extract row IDs only from WHERE-clause expressions (not JOIN ON / HAVING)
-  for (const whereExpr of whereExprs) {
-    traverse(whereExpr, {
-      enter(node) {
-        // "id = ?" pattern
-        if (node.type === "BinaryExpr" && node.op === "Equals") {
-          const be = node as BinaryExpr;
-          const columnName = extractColumnName(be.left);
-          if (!columnName) return;
-          const paramOffset = extractParamOffset(be.right);
-          if (paramOffset === -1) return;
-          const pIdx = paramIndexForOffset.get(paramOffset);
-          if (pIdx !== undefined && pIdx < params.length) {
-            const tableHint = extractTableHint(be.left);
-            whereIds.push({ tableHint, column: columnName, paramIndices: [pIdx] });
-          }
-        }
-
-        // "id IN (?, ?)" pattern
-        if (node.type === "InListExpr") {
-          const ie = node as InListExpr;
-          if (!ie.rhs) return;
-          const columnName = extractColumnName(ie.lhs);
-          if (!columnName) return;
-          const indices: number[] = [];
-          for (const item of ie.rhs) {
-            const paramOffset = extractParamOffset(item);
-            if (paramOffset === -1) continue;
-            const pIdx = paramIndexForOffset.get(paramOffset);
-            if (pIdx !== undefined && pIdx < params.length) {
-              indices.push(pIdx);
-            }
-          }
-          if (indices.length > 0) {
-            const tableHint = extractTableHint(ie.lhs);
-            whereIds.push({ tableHint, column: columnName, paramIndices: indices });
-          }
-        }
-      },
-    });
-  }
-
-  return { queryType, tablesRead, tablesWritten, whereIds };
-}
-
-function extractColumnName(node: Expr | null): string | null {
-  if (!node) return null;
-  if (node.type === "Id") return (node as Id).name;
-  if (node.type === "QualifiedExpr") {
-    const qe = node as QualifiedExpr;
-    return getNameText(qe.column);
-  }
-  return null;
-}
-
-function extractTableHint(node: Expr | null): string {
-  if (!node) return "";
-  if (node.type === "QualifiedExpr") {
-    const qe = node as QualifiedExpr;
-    return getNameText(qe.table);
-  }
-  return "";
-}
-
-function extractParamOffset(node: Expr | null): number {
-  if (!node || node.type !== "VariableExpr") return -1;
-  return (node as VariableExpr).span.offset;
+  return { queryType, tablesRead, tablesWritten };
 }

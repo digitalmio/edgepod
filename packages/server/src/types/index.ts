@@ -26,6 +26,7 @@ export type RpcRequest = {
   user: Record<string, unknown> | null;
   traceId: string;
   reactive: boolean;
+  sessionId: string;
 };
 
 export type RpcMeta = {

@@ -121,6 +121,9 @@ importers:
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      quick-lru:
+        specifier: ^7.3.0
+        version: 7.3.0
       sqlite3-parser:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3033,6 +3036,10 @@ packages:
   quansync@1.0.0:
     resolution: {integrity: sha512-5xZacEEufv3HSTPQuchrvV6soaiACMFnq1H8wkVioctoH3TRha9Sz66lOxRwPK/qZj7HPiSveih9yAyh98gvqA==}
 
+  quick-lru@7.3.0:
+    resolution: {integrity: sha512-k9lSsjl36EJdK7I06v7APZCbyGT2vMTsYSRX1Q2nbYmnkBqgUhRkAuzH08Ciotteu/PLJmIF2+tti7o3C/ts2g==}
+    engines: {node: '>=18'}
+
   rc@1.2.8:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
@@ -5937,6 +5944,8 @@ snapshots:
   punycode@2.3.1: {}
 
   quansync@1.0.0: {}
+
+  quick-lru@7.3.0: {}
 
   rc@1.2.8:
     dependencies:

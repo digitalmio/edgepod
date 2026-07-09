@@ -56,7 +56,12 @@ function createInsertBuilder() {
 }
 
 function createMockDb() {
+  const sqlProxy = {
+    exec: vi.fn(() => ({ toArray: () => [] })),
+  };
   const db: Record<string, unknown> = {
+    $client: { sql: sqlProxy },
+    session: {},
     select: vi.fn(() => createSelectBuilder()),
     selectDistinct: vi.fn(() => createSelectBuilder()),
     insert: vi.fn((_table: unknown) => createInsertBuilder()),
@@ -211,12 +216,20 @@ describe("createTrackedDb", () => {
     expect(typeof existingMethod).toBe("function");
   });
 
-  it("logs warning when realDb.$client is missing", () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    createProxy();
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[EdgePod] Unable to wire SQL tracking: realDb.$client is missing or invalid.",
-    );
-    warnSpy.mockRestore();
+  it("throws when realDb.$client is missing", () => {
+    const mockDb = createMockDb();
+    delete (mockDb as Record<string, unknown>).$client;
+
+    expect(() =>
+      createTrackedDb(
+        mockDb as unknown as RawDrizzleDb<any>,
+        sessionId,
+        activeSessions,
+        tablesRead,
+        tablesWritten,
+        new Map(),
+        warnings,
+      ),
+    ).toThrow("realDb.$client is missing or invalid");
   });
 });

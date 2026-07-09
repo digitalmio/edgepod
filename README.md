@@ -72,7 +72,7 @@ EdgePod is built on a **Dual-Protocol** architecture, separating data transfer f
 
 Every EdgePod project is deployed directly to the user's Cloudflare account as a two-part system:
 
-- **The Gateway Worker:** A stateless entry point that handles incoming HTTP requests, upgrades WebSockets, verifies authentication keys (`EP_PK_...`), and routes traffic to the correct Durable Object.
+- **The Gateway Worker:** A stateless entry point that handles incoming HTTP requests, upgrades WebSockets, verifies authentication keys (`ep_pk_...`), and routes traffic to the correct Durable Object.
 - **The EdgePod Engine (Durable Object):** A single, atomic, stateful instance containing the embedded SQLite database. It maintains all active WebSocket connections in memory and executes the user's RPC functions.
 
 > Durable Objects are incredibly powerful, but they are intentionally small and resource-constrained. Pushing large payloads or running unbounded queries can increase your Cloudflare bill and degrade performance. EdgePod puts safety nets in place to help you avoid these pitfalls.
@@ -84,7 +84,13 @@ Every EdgePod project is deployed directly to the user's Cloudflare account as a
 
 ### Security Model
 
-EdgePod is origin-agnostic by design. Every request is authenticated via the publishable API key (`EP_PK_...`); CORS is not used as a security gate. This allows SPAs, mobile apps, and third-party frontends to call your backend directly without origin whitelisting.
+EdgePod is origin-agnostic by design. Every request is authenticated via the publishable API key (`ep_pk_...`); CORS is not used as a security gate. This allows SPAs, mobile apps, and third-party frontends to call your backend directly without origin whitelisting.
+
+**The API key is publishable by design.** It ships in your client bundle and is visible to anyone who inspects network requests or reads your frontend code. It authenticates the request but does **not** authorise per-user access. Every exported RPC function is reachable by anyone who holds the key (i.e. everyone).
+
+**The exported function is the security boundary.** There is no per-query Row-Level Security (RLS) baked into the framework — you control access at the function level. For user-specific authorisation, use Bearer token authentication (JWT) paired with the `withAuth` middleware. A function without `withAuth` or its own auth check is a public endpoint.
+
+**Rule of thumb:** if a function reads or mutates data on behalf of a specific user, wrap it with `withAuth`. If a function reads public data (e.g. a public profile), it can remain unprotected. Never return secrets or perform privileged side-effects from an unprotected function.
 
 ### The Reactivity Engine
 
@@ -219,8 +225,11 @@ EdgePod helps you stay within Durable Object limits with lightweight, always-on 
 | **WHERE enforcement** | `UPDATE` and `DELETE` without a `.where()` clause are blocked. If you really mean to affect every row, chain `.withoutWhere()` to opt out per-query.                                              |
 | **Raw SQL guard**     | Dangerous raw methods like `db.run()` and `db.get()` are blocked on the tracked database instance. Use `ctx.unsafeRawDb` explicitly if you need raw access, and call `ctx.invalidate()` manually. |
 | **Bulk insert limit** | `insert().values()` arrays are capped at 1 000 rows to avoid oversized writes.                                                                                                                    |
+| **Payload limit**     | RPC request bodies are capped at **10 MB** (configurable via `EDGEPOD_MAX_BODY_BYTES`). Oversized payloads are rejected with a `413` before they reach the Durable Object.                        |
 
 These are not configuration options — they are designed to catch accidental misuse early, while giving you explicit escape hatches when you need them.
+
+> **Rate limiting:** The Gateway Worker is stateless, so the framework does not enforce per-client rate limits. For production use, configure [Cloudflare Rate Limiting Rules](https://developers.cloudflare.com/waf/rate-limiting-rules/) or the [Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) to protect your Durable Object from excessive requests.
 
 ### Schema Migrations
 

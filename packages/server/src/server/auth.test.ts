@@ -325,3 +325,53 @@ describe("getJwtSigner", () => {
     expect(SignJWT).toHaveBeenCalledWith({ sub: "user-1", role: "admin" });
   });
 });
+
+describe("resetAuthCache", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("clears the signer after initialization", async () => {
+    const { initJwtSigner, getJwtSigner, resetAuthCache } = await import("./auth");
+
+    const mockPrivateKey = JSON.stringify({
+      kty: "EC",
+      crv: "P-256",
+      d: "test-private-key",
+      x: "test-x",
+      y: "test-y",
+    });
+
+    await initJwtSigner({ EDGEPOD_JWT_PRIVATE_KEY: mockPrivateKey });
+    expect(getJwtSigner()).not.toBeNull();
+
+    resetAuthCache();
+    expect(getJwtSigner()).toBeNull();
+  });
+
+  it("clears the JWKS cache", async () => {
+    const { verifyJwt, resetAuthCache } = await import("./auth");
+    const { createRemoteJWKSet } = await import("jose");
+
+    // First call populates the JWKS cache
+    await verifyJwt("valid-token", {
+      EDGEPOD_JWKS_URL: "https://example.com/.well-known/jwks.json",
+    });
+
+    vi.mocked(createRemoteJWKSet).mockClear();
+
+    // Second call should use the cache (no new createRemoteJWKSet call)
+    await verifyJwt("valid-token", {
+      EDGEPOD_JWKS_URL: "https://example.com/.well-known/jwks.json",
+    });
+    expect(createRemoteJWKSet).not.toHaveBeenCalled();
+
+    // After reset, the next call should re-fetch
+    resetAuthCache();
+    vi.mocked(createRemoteJWKSet).mockClear();
+    await verifyJwt("valid-token", {
+      EDGEPOD_JWKS_URL: "https://example.com/.well-known/jwks.json",
+    });
+    expect(createRemoteJWKSet).toHaveBeenCalled();
+  });
+});

@@ -30,7 +30,7 @@ export function createTrackedClient(
             const value = Reflect.get(sqlTarget, sqlProp, sqlReceiver);
             if (sqlProp === "exec" && typeof value === "function") {
               return (sqlStr: string, ...params: unknown[]) => {
-                const parsed = parseSqlTracking(sqlStr, params);
+                const parsed = parseSqlTracking(sqlStr);
                 for (const t of parsed.tablesRead) tablesRead.add(t);
                 for (const t of parsed.tablesWritten) {
                   recordCascades(t, tablesWritten, cascadeGraph);

@@ -1,7 +1,7 @@
 import pkg from "../../package.json" with { type: "json" };
 import type { BaseEdgePodEngine } from "./do";
 import type { RpcRequest } from "../types";
-import { verifyJwt } from "./auth";
+import { verifyJwt, resetAuthCache } from "./auth";
 import { hashMetaTableNames } from "../tools/hashTableName";
 import { ResultAsync } from "neverthrow";
 
@@ -20,6 +20,7 @@ type EdgePodEnv = {
   EDGEPOD_DO: DurableObjectNamespace<BaseEdgePodEngine>;
   EDGEPOD_API_KEY: string;
   EDGEPOD_JWKS_URL?: string;
+  EDGEPOD_MAX_BODY_BYTES?: string;
   ASSETS?: Fetcher;
 };
 
@@ -39,6 +40,68 @@ type EdgePodStub = {
   ): ReturnType<BaseEdgePodEngine["executeRpc"]>;
   fetch(request: Request): Promise<Response>;
 };
+
+const MAX_BODY_BYTES_DEFAULT = 10 * 1024 * 1024;
+
+const PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE";
+
+// Headers stripped from ctx.headers to prevent leaking credentials into user functions
+const FILTERED_HEADERS = new Set([
+  "authorization",
+  "x-edgepod-key",
+  "x-edgepod-session-id",
+  "x-edgepod-reactive",
+]);
+
+function filterHeaders(headers: Headers): Record<string, string> {
+  const filtered: Record<string, string> = {};
+  for (const [key, value] of headers.entries()) {
+    if (!FILTERED_HEADERS.has(key.toLowerCase())) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
+
+async function readBodyWithLimit(request: Request, maxBytes: number): Promise<unknown> {
+  const cl = request.headers.get("Content-Length");
+  if (cl && Number(cl) > maxBytes) {
+    throw new Error(PAYLOAD_TOO_LARGE);
+  }
+
+  if (!request.body) {
+    return {};
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new Error(PAYLOAD_TOO_LARGE);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (totalBytes === 0) return {};
+
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return JSON.parse(new TextDecoder().decode(merged));
+}
 
 const getStub = (env: EdgePodEnv, options?: DataLocationOptions): EdgePodStub => {
   const namespace = options?.jurisdiction
@@ -65,7 +128,9 @@ export const edgePodFetch = async (
   }
 
   // API key auth — WebSocket upgrades can't send custom headers, so also accept ?key= query param
-  const apiKey = request.headers.get("X-Edgepod-Key") ?? url.searchParams.get("key");
+  const isWsUpgrade = request.headers.get("Upgrade") === "websocket";
+  const apiKey =
+    request.headers.get("X-Edgepod-Key") ?? (isWsUpgrade ? url.searchParams.get("key") : null);
 
   if (!apiKey || apiKey !== env.EDGEPOD_API_KEY) {
     return new Response("Unauthorized", { status: 401, headers: serverHeader });
@@ -96,47 +161,39 @@ export const edgePodFetch = async (
       );
     }
 
-    if (request.method !== "POST" && request.method !== "GET") {
+    if (request.method !== "POST") {
       return new Response("Method Not Allowed", {
         status: 405,
         headers: serverHeader,
       });
     }
 
-    const parseArgs = (): ResultAsync<unknown, string> => {
-      if (request.method === "POST") {
-        return ResultAsync.fromPromise(request.json(), () => "Invalid request body.");
-      }
-      if (request.method === "GET") {
-        const queryArgs = url.searchParams.get("args");
-        if (queryArgs) {
-          return ResultAsync.fromPromise(
-            Promise.resolve(JSON.parse(decodeURIComponent(queryArgs))),
-            () => "Invalid request body.",
-          );
-        }
-        return ResultAsync.fromPromise(Promise.resolve({}), () => "unreachable");
-      }
-      return ResultAsync.fromPromise(Promise.reject(new Error("unreachable")), () => "unreachable");
-    };
+    const maxBodyBytes = parseInt(env.EDGEPOD_MAX_BODY_BYTES ?? "") || MAX_BODY_BYTES_DEFAULT;
 
-    const argsResult = await parseArgs();
+    const argsResult = await ResultAsync.fromPromise(
+      readBodyWithLimit(request, maxBodyBytes),
+      (e) => (e instanceof Error ? e.message : "Invalid request body."),
+    );
+
     if (argsResult.isErr()) {
+      const isTooLarge = argsResult.error === PAYLOAD_TOO_LARGE;
       return Response.json(
-        { success: false, error: argsResult.error },
-        { status: 400, headers: serverHeader },
+        { success: false, error: isTooLarge ? "Payload Too Large" : argsResult.error },
+        { status: isTooLarge ? 413 : 400, headers: serverHeader },
       );
     }
 
     const stub = getStub(env, options);
     const traceId = crypto.randomUUID();
-    const headers: Record<string, string> = Object.fromEntries(request.headers.entries());
+    const sessionId = request.headers.get("X-Edgepod-Session-Id") ?? "anonymous";
     const reactive = request.headers.get("X-Edgepod-Reactive") !== "false";
+    const headers = filterHeaders(request.headers);
     const result = await stub.executeRpc(functionName, argsResult.value, {
       headers,
       user: userPayload,
       traceId,
       reactive,
+      sessionId,
     });
 
     if (result.success) {
@@ -181,3 +238,4 @@ export const edgePodFetch = async (
 
 // barrel export for the DO class, so Wrangler can push the code
 export { BaseEdgePodEngine } from "./do";
+export { resetAuthCache };

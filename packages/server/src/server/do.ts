@@ -83,6 +83,12 @@ export class BaseEdgePodEngine extends DurableObject {
       const sessionId = url.searchParams.get("sessionId");
       if (!sessionId) return new Response("Missing sessionId", { status: 400 });
 
+      // Close any existing session with this id to prevent orphaned entries
+      // and subscription hijacking. Last-writer-wins handles legitimate
+      // PartySocket reconnects where webSocketClose hasn't fired yet (race),
+      // as well as accidental/malicious sessionId collisions.
+      this.closeExistingSession(sessionId);
+
       const { 0: client, 1: server } = new WebSocketPair();
 
       this.ctx.acceptWebSocket(server);
@@ -127,6 +133,21 @@ export class BaseEdgePodEngine extends DurableObject {
     }
   }
 
+  // Close and remove an existing session with the given sessionId, if any.
+  // Called before accepting a new WebSocket upgrade to prevent orphaned
+  // sockets and subscription hijacking from duplicate sessionIds.
+  private closeExistingSession(sessionId: string): void {
+    const existing = this.activeSessions.get(sessionId);
+    if (!existing) return;
+
+    try {
+      existing.socket.close(1001, "Replaced");
+    } catch {
+      // Socket already closing; ignore.
+    }
+    this.activeSessions.delete(sessionId);
+  }
+
   // Cron
   override async alarm(): Promise<void> {
     await handleCronAlarm(
@@ -143,8 +164,7 @@ export class BaseEdgePodEngine extends DurableObject {
   // RPC Execution Engine
   // aka this is where we are running user code
   async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest): Promise<ExecuteRpcResult> {
-    const { headers, user, traceId, reactive } = rpcCtx;
-    const sessionId = headers["x-edgepod-session-id"] || "anonymous";
+    const { headers, user, traceId, reactive, sessionId } = rpcCtx;
 
     const handler = this.userFunctions[functionName];
     if (!handler)
@@ -180,7 +200,13 @@ export class BaseEdgePodEngine extends DurableObject {
       env: this.env,
       headers,
       log: createLogger(traceId),
-      signJwt: getJwtSigner(),
+      signJwt:
+        getJwtSigner() ??
+        (() => {
+          throw new Error(
+            "[EdgePod] JWT signing is not configured. Set EDGEPOD_JWT_PRIVATE_KEY and use local auth mode.",
+          );
+        }),
       subscribeTo: (tables: string[]) => {
         const session = this.activeSessions.get(sessionId);
         if (session) {
@@ -242,7 +268,12 @@ export class BaseEdgePodEngine extends DurableObject {
         try {
           session.socket.send(payload);
         } catch {
-          // delete sessions with broken sockets as they might be dead
+          // Close and delete sessions with broken sockets as they might be dead
+          try {
+            session.socket.close(1011, "Connection error");
+          } catch {
+            // Socket already closing; ignore.
+          }
           this.activeSessions.delete(sessionId);
         }
       }

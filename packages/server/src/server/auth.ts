@@ -108,3 +108,11 @@ export function initJwtSigner(env: AuthEnv): ResultAsync<void, string> {
 export function getJwtSigner(): typeof signer {
   return signer;
 }
+
+// Clears the module-level JWKS and signer caches. Call after rotating keys
+// (e.g. via Wrangler secrets API) so the next request re-fetches fresh keys.
+export function resetAuthCache(): void {
+  jwks = null;
+  signingKey = null;
+  signer = null;
+}

@@ -60,24 +60,35 @@ export function createTrackedDb<TSchema extends Record<string, unknown>>(
   cascadeGraph: Map<string, Set<string>>,
   warnings: string[],
 ): unknown {
-  // Wire in client-level SQL tracking if the db exposes its underlying storage
+  // Wire in client-level SQL tracking if the db exposes its underlying storage.
+  // Drizzle's internal $client/session structure is required for SQL interception.
+  // If these are missing (e.g. drizzle-orm version incompatibility), reactivity
+  // silently breaks — throw loudly so the user sees it immediately.
   const client = (realDb as unknown as Record<string, unknown>).$client;
   if (!client || typeof client !== "object" || !("sql" in client)) {
-    console.warn("[EdgePod] Unable to wire SQL tracking: realDb.$client is missing or invalid.");
-  } else {
-    const trackedClient = createTrackedClient(
-      client as DurableObjectStorage,
-      tablesRead,
-      tablesWritten,
-      cascadeGraph,
+    throw new Error(
+      "[EdgePod] Drizzle internal structure mismatch: realDb.$client is missing or invalid. " +
+        "This usually means a drizzle-orm version incompatibility. " +
+        "Pin your drizzle-orm version or open an issue at https://github.com/digitalmio/edgepod.",
     );
-    const session = (realDb as unknown as Record<string, unknown>).session;
-    if (!session || typeof session !== "object") {
-      console.warn("[EdgePod] Unable to wire SQL tracking: realDb.session is missing.");
-    } else {
-      (session as Record<string, unknown>).client = trackedClient;
-    }
   }
+
+  const trackedClient = createTrackedClient(
+    client as DurableObjectStorage,
+    tablesRead,
+    tablesWritten,
+    cascadeGraph,
+  );
+
+  const drizzleSession = (realDb as unknown as Record<string, unknown>).session;
+  if (!drizzleSession || typeof drizzleSession !== "object") {
+    throw new Error(
+      "[EdgePod] Drizzle internal structure mismatch: realDb.session is missing. " +
+        "This usually means a drizzle-orm version incompatibility. " +
+        "Pin your drizzle-orm version or open an issue at https://github.com/digitalmio/edgepod.",
+    );
+  }
+  (drizzleSession as Record<string, unknown>).client = trackedClient;
 
   return new Proxy(realDb as unknown as Record<string, unknown>, {
     get(target: Record<string, unknown>, prop: string) {
