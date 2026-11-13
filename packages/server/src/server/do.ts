@@ -5,8 +5,16 @@ import { createTrackedDb } from "../tools/createTrackedDb";
 import { buildCascadeGraph } from "../tools/buildCascadeGraph";
 import { initJwtSigner, getJwtSigner } from "./auth";
 import { initLogger, createLogger } from "./logger";
-import type { EdgePodSessionMap, EdgePodContext, RpcRequest, RpcMeta, JsonValue } from "../types";
+import type {
+  EdgePodSessionMap,
+  EdgePodContext,
+  CronDefinition,
+  RpcRequest,
+  RpcMeta,
+  JsonValue,
+} from "../types";
 import { hashMetaTableNames, hashTableName } from "../tools/hashTableName";
+import { scheduleNextAlarm, handleCronAlarm } from "./cron";
 
 // neverthrow discriminated unions (Result<T, E>) are not serializable across
 // Cloudflare Durable Object RPC boundaries because they carry prototype
@@ -20,6 +28,7 @@ export class BaseEdgePodEngine extends DurableObject {
   private activeSessions: EdgePodSessionMap = new Map();
   private cascadeGraph: Map<string, Set<string>> = new Map();
   protected userFunctions: Record<string, (...args: any[]) => Promise<JsonValue> | JsonValue> = {};
+  protected cronFunctions: Record<string, CronDefinition<any, any, any>> = {};
   protected schema: Record<string, unknown> = {};
   protected migrations: {
     journal: unknown;
@@ -52,6 +61,15 @@ export class BaseEdgePodEngine extends DurableObject {
 
       if (this.migrations) {
         await migrate(this.rawDb, this.migrations as any);
+      }
+
+      // Schedule the first alarm on cold start. This replaces any existing alarm,
+      // which is safe — when the DO wakes from hibernation for an RPC request (not
+      // alarm), the recomputed soonest-next-fire will be ≤ the previously pending
+      // alarm time, so no cron run is lost. When the DO wakes because an alarm fired,
+      // the alarm has already been consumed and alarm() will fire regardless.
+      if (Object.keys(this.cronFunctions).length > 0) {
+        await scheduleNextAlarm(this.cronFunctions, (ms) => this.ctx.storage.setAlarm(ms));
       }
     });
   }
@@ -109,7 +127,20 @@ export class BaseEdgePodEngine extends DurableObject {
     }
   }
 
-  // The RPC Execution Engine
+  // Cron
+  override async alarm(): Promise<void> {
+    await handleCronAlarm(
+      this.cronFunctions,
+      (ms) => this.ctx.storage.setAlarm(ms),
+      this.rawDb,
+      this.env,
+      this.activeSessions,
+      this.cascadeGraph,
+      (tables) => this.broadcastInvalidations(tables),
+    );
+  }
+
+  // RPC Execution Engine
   // aka this is where we are running user code
   async executeRpc(functionName: string, args: any, rpcCtx: RpcRequest): Promise<ExecuteRpcResult> {
     const { headers, user, traceId, reactive } = rpcCtx;

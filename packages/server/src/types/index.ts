@@ -78,3 +78,22 @@ export type EdgePodContext<
   set: <Key extends keyof TVariables>(key: Key, value: TVariables[Key]) => void;
   get: <Key extends keyof TVariables>(key: Key) => TVariables[Key];
 };
+
+// Cron
+export type CronContext<
+  TSchema extends Record<string, unknown>,
+  TEnv = Record<string, string>,
+  TVariables extends Record<string, unknown> = Record<string, unknown>,
+> = Omit<EdgePodContext<TSchema, TEnv, TVariables>, "headers" | "user" | "signJwt"> & {
+  cron: string;
+  scheduledTime: string;
+};
+
+export type CronDefinition<
+  TSchema extends Record<string, unknown> = Record<string, unknown>,
+  TEnv = Record<string, string>,
+  TVariables extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  schedule: string;
+  handler: (ctx: CronContext<TSchema, TEnv, TVariables>) => Promise<void>;
+};
